@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error - BreakTime Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center">
+  
+  <div class="text-center max-w-md mx-auto px-4">
+    <!-- ICONO DE ERROR -->
+    <div class="text-6xl mb-4">🚨</div>
+    
+    <!-- TÍTULO -->
+    <h1 class="text-3xl font-bold mb-4">¡Oops! Algo salió mal</h1>
+    
+    <!-- MENSAJE DE ERROR -->
+    <div class="bg-red-600 bg-opacity-20 border border-red-600 rounded-lg p-4 mb-6">
+      <p class="text-lg font-medium">{{ error or "Error desconocido" }}</p>
+    </div>
+    
+    <!-- INFORMACIÓN ADICIONAL -->
+    <div class="text-gray-400 mb-6">
+      <p class="text-sm">Si el problema persiste, contacta al administrador del sistema.</p>
+    </div>
+    
+    <!-- BOTONES DE NAVEGACIÓN -->
+    <div class="space-y-3">
+      <a 
+        href="/" 
+        class="block w-full bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded font-semibold text-white transition-colors"
+      >
+        🏠 Volver al Inicio
+      </a>
+      
+      <button 
+        onclick="history.back()" 
+        class="block w-full bg-gray-600 hover:bg-gray-700 px-6 py-3 rounded font-semibold text-white transition-colors"
+      >
+        ← Volver Atrás
+      </button>
+    </div>
+    
+    <!-- FOOTER -->
+    <div class="mt-8 text-xs text-gray-500">
+      <p>&copy; 2025 BreakTime Tracker</p>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editar Usuario - BreakTime Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  <!-- HEADER -->
+  <header class="flex flex-col sm:flex-row justify-between items-center px-4 sm:px-8 py-4 bg-gray-800 shadow">
+    <div class="mb-4 sm:mb-0 text-center sm:text-left">
+      <h1 class="text-xl sm:text-2xl font-bold">✏️ Editar Usuario</h1>
+      <p class="text-xs sm:text-sm text-gray-300">Modificar información del asistente</p>
+    </div>    <nav class="flex flex-wrap justify-center gap-2">
+      <a href="{{ url_for('base_datos') }}" class="bg-blue-600 hover:bg-blue-700 px-3 sm:px-4 py-2 rounded text-sm sm:text-base">← Volver a Base de Datos</a>
+      <a href="{{ url_for('logout') }}" class="bg-red-500 hover:bg-red-600 px-3 sm:px-4 py-2 rounded text-sm sm:text-base">🚪 Salir</a>
+    </nav>
+  </header>
+
+  <main class="container mx-auto px-4 py-8">
+    
+    <!-- FORMULARIO DE EDICIÓN -->
+    <section class="bg-gray-800 p-6 rounded-lg max-w-2xl mx-auto">
+      <div class="mb-6">
+        <h2 class="text-xl font-bold mb-2">Editando: {{ usuario.nombre }}</h2>
+        <p class="text-sm text-gray-400">ID del usuario: {{ usuario.id }}</p>
+      </div>
+      
+      <form method="POST" class="space-y-6">
+        <!-- NOMBRE -->
+        <div>
+          <label for="nombre" class="block text-sm font-medium mb-2">
+            <span class="text-yellow-400">📝</span> Nombre Completo:
+          </label>
+          <input 
+            type="text" 
+            id="nombre" 
+            name="nombre" 
+            value="{{ usuario.nombre }}"
+            required 
+            class="w-full p-3 rounded bg-gray-700 border border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            placeholder="Nombre completo del asistente"
+          />
+        </div>
+        
+        <!-- TARJETA -->
+        <div>
+          <label for="tarjeta" class="block text-sm font-medium mb-2">
+            <span class="text-blue-400">🏷️</span> Número de Tarjeta:
+          </label>
+          <input 
+            type="text" 
+            id="tarjeta" 
+            name="tarjeta" 
+            value="{{ usuario.tarjeta }}"
+            required 
+            class="w-full p-3 rounded bg-gray-700 border border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            placeholder="Número de identificación de tarjeta"
+          />
+        </div>
+        
+        <!-- TURNO -->
+        <div>
+          <label for="turno" class="block text-sm font-medium mb-2">
+            <span class="text-green-400">⏰</span> Tipo de Turno:
+          </label>
+          <select 
+            id="turno" 
+            name="turno" 
+            required 
+            class="w-full p-3 rounded bg-gray-700 border border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="Full" {% if usuario.turno == 'Full' %}selected{% endif %}>Full Time</option>
+            <option value="Part-time" {% if usuario.turno == 'Part-time' %}selected{% endif %}>Part Time</option>
+            <option value="Llamado" {% if usuario.turno == 'Llamado' %}selected{% endif %}>Llamado</option>
+          </select>
+        </div>
+        
+        <!-- CÓDIGO -->
+        <div>
+          <label for="codigo" class="block text-sm font-medium mb-2">
+            <span class="text-purple-400">🔢</span> Código Asistente:
+          </label>
+          <input 
+            type="text" 
+            id="codigo" 
+            name="codigo" 
+            value="{{ usuario.codigo }}"
+            required 
+            class="w-full p-3 rounded bg-gray-700 border border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            placeholder="Código único del asistente"
+          />
+        </div>
+        
+        <!-- BOTONES -->
+        <div class="flex flex-col sm:flex-row gap-4 pt-6">
+          <button 
+            type="submit" 
+            class="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold text-white shadow-lg transition-colors"
+          >
+            ✅ Guardar Cambios
+          </button>
+            <a 
+            href="{{ url_for('base_datos') }}" 
+            class="bg-gray-600 hover:bg-gray-700 px-6 py-3 rounded-lg font-semibold text-white shadow-lg text-center transition-colors"
+          >
+            ❌ Cancelar
+          </a>
+        </div>
+      </form>
+      
+      <!-- INFORMACIÓN ADICIONAL -->
+      <div class="mt-8 p-4 bg-gray-700 rounded-lg border-l-4 border-blue-500">
+        <h3 class="font-bold mb-2">ℹ️ Información del Sistema:</h3>
+        <div class="text-sm text-gray-300 space-y-1">
+          <p><strong>ID:</strong> {{ usuario.id }}</p>
+          <p><strong>Registro original:</strong> Información preservada</p>
+          <p><strong>Última edición:</strong> Ahora</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="mt-8 py-4 text-center text-gray-400 text-sm">
+    <p>&copy; 2025 BreakTime Tracker - Sistema de control de descansos</p>
+  </footer>
+
+  <!-- Agregar antes de </body> -->
+<script>
+// DESHABILITAR ENTER EN CAMPO TARJETA PARA EDITAR
+document.addEventListener('DOMContentLoaded', function() {
+    const campoTarjeta = document.querySelector('input[name="tarjeta"]');
+    
+    if (campoTarjeta) {
+        // Prevenir ENTER en campo tarjeta
+        campoTarjeta.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' || event.keyCode === 13) {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                // Mover al siguiente campo
+                const siguienteCampo = document.querySelector('select[name="turno"]');
+                if (siguienteCampo) {
+                    siguienteCampo.focus();
+                }
+                
+                return false;
+            }
+        });
+        
+        campoTarjeta.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter' || event.keyCode === 13) {
+                event.preventDefault();
+                return false;
+            }
+        });
+    }
+});
+</script>
+</body>
+</html>

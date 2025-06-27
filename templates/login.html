@@ -1,0 +1,114 @@
+<!-- 
+🔐 PÁGINA DE LOGIN - BreakTime Tracker
+====================================
+Página de autenticación para administradores del sistema.
+Solo usuarios con credenciales válidas pueden acceder al panel administrativo.
+-->
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <!-- CONFIGURACIÓN BÁSICA DEL DOCUMENTO -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - BreakTime Tracker</title>
+  
+  <!-- FRAMEWORK CSS PARA ESTILOS MODERNOS -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+
+<!-- ESTRUCTURA PRINCIPAL: Layout flexbox que ocupa toda la pantalla -->
+<body class="bg-gray-900 text-white min-h-screen flex flex-col">
+  
+  <!-- ========== HEADER: Barra superior con branding y navegación ========== -->
+  <header class="flex justify-between items-center px-8 py-4 bg-gray-800 shadow">
+    <!-- BRANDING: Logo y descripción del sistema -->
+    <div>
+      <h1 class="text-2xl font-bold">BreakTime Tracker</h1>
+      <p class="text-sm text-gray-300">Control de descansos y comidas</p>
+    </div>
+    
+    <!-- NAVEGACIÓN SIMPLIFICADA: Solo enlace a página principal -->
+    <nav class="space-x-2">
+      <a href="/" class="bg-violet-600 hover:bg-violet-700 px-4 py-2 rounded transition-colors">
+        🏠 Inicio
+      </a>
+    </nav>
+  </header>
+
+  <!-- ========== CONTENIDO PRINCIPAL: Formulario de login centrado ========== -->
+  <main class="flex-grow flex items-center justify-center">
+    
+    <!-- TARJETA DE LOGIN: Contenedor principal del formulario -->
+    <div class="bg-gray-800 p-8 rounded-lg shadow-md w-full max-w-md mt-8">
+      
+      <!-- TÍTULO PRINCIPAL -->
+      <h1 class="text-2xl font-bold mb-6 text-center">🔐 Iniciar Sesión</h1>
+      
+      <!-- AVISO INFORMATIVO: Indica que solo es para administradores -->
+      <div class="bg-blue-600 bg-opacity-20 border border-blue-600 rounded-lg p-3 mb-4 text-center">
+        <p class="text-sm text-blue-300">Acceso solo para administradores</p>
+      </div>
+      
+      <!-- MOSTRAR ERRORES: Se muestra si hay errores en el login -->
+      {% if error %}
+      <div class="bg-red-600 bg-opacity-20 border border-red-600 rounded-lg p-3 mb-4">
+        <p class="text-sm text-red-300">{{ error }}</p>
+      </div>
+      {% endif %}
+      
+      <!-- ========== FORMULARIO DE AUTENTICACIÓN ========== -->
+      <form method="POST">
+        
+        <!-- CAMPO USUARIO: Input para nombre de usuario -->
+        <div class="mb-4">
+          <label for="usuario" class="block text-sm font-medium mb-2">👤 Usuario</label>
+          <input 
+            type="text" 
+            id="usuario" 
+            name="usuario" 
+            required 
+            class="w-full p-3 rounded bg-gray-700 border border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            placeholder="Ingresa tu usuario"
+          />
+        </div>
+        
+        <!-- CAMPO CONTRASEÑA: Input con tipo password para seguridad -->
+        <div class="mb-6">
+          <label for="clave" class="block text-sm font-medium mb-2">🔑 Contraseña</label>
+          <input 
+            type="password" 
+            id="clave" 
+            name="clave" 
+            required 
+            class="w-full p-3 rounded bg-gray-700 border border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            placeholder="Ingresa tu contraseña"
+          />
+        </div>
+        
+        <!-- BOTÓN DE ENVÍO: Procesa el formulario -->
+        <button 
+          type="submit" 
+          class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold text-white shadow-lg transition-colors"
+        >
+          🔐 Ingresar al Panel Administrativo
+        </button>
+      </form>
+      
+      <!-- INFORMACIÓN ADICIONAL: Contacto para solicitar acceso -->
+      <div class="mt-6 text-center">
+        <p class="text-xs text-gray-400">
+          ¿Necesitas acceso? Contacta al administrador del sistema
+        </p>
+      </div>
+      
+    </div> <!-- Fin tarjeta de login -->
+  </main>
+  
+  <!-- ========== FOOTER: Información de copyright ========== -->
+  <footer class="py-4 text-center text-gray-400 text-sm">
+    <p>&copy; 2025 BreakTime Tracker - Sistema de control de descansos</p>
+  </footer>
+  
+</body>
+</html>

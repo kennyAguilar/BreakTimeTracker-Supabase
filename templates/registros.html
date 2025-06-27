@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registros - BreakTime Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  <!-- HEADER -->
+  <header class="flex flex-col sm:flex-row justify-between items-center px-4 sm:px-8 py-4 bg-gray-800 shadow">
+    <div class="mb-4 sm:mb-0 text-center sm:text-left">
+      <h1 class="text-xl sm:text-2xl font-bold">Registros de Descansos</h1>
+      <p class="text-xs sm:text-sm text-gray-300">Historial y exportación de datos</p>
+    </div>
+    <nav class="bg-blue-600 p-4">
+      <div class="container mx-auto flex justify-between items-center">
+        <h1 class="text-white text-xl font-bold">📋 Historial de Registros</h1>
+        
+        <!-- SIN botón Inicio -->
+        <div class="space-x-4">
+          <a href="{{ url_for('base_datos') }}" class="text-white hover:text-blue-200">🗂️ Usuarios</a>
+          <a href="{{ url_for('reportes') }}" class="text-white hover:text-blue-200">📊 Reportes</a>
+          <a href="{{ url_for('logout') }}" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">🚪 Cerrar Sesión</a>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- AVISO DE SEGURIDAD -->
+  <div class="bg-gray-100 p-2 border-b">
+    <div class="container mx-auto text-center text-sm text-gray-600">
+      ⚠️ Área administrativa - Para volver al inicio debe 
+      <a href="{{ url_for('logout') }}" class="text-red-600 underline font-bold">cerrar sesión</a>
+    </div>
+  </div>
+
+  <main class="container mx-auto px-4 py-8">
+      <!-- SECCIÓN DE FILTROS MEJORADOS PARA JORNADAS -->
+    <section class="bg-gray-800 p-6 rounded-lg mb-6">
+      <h2 class="text-lg font-bold mb-4">🌙 Filtros por Jornadas Nocturnas</h2>
+      
+      <form method="GET" class="space-y-4">
+        
+        <!-- FILTROS RÁPIDOS -->
+        <div class="bg-gray-700 p-4 rounded-lg">
+          <label class="block text-sm font-medium mb-2">⚡ Filtros Rápidos:</label>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <button type="submit" name="filtro_rapido" value="hoy" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm
+                    {% if filtros.filtro_rapido == 'hoy' %}ring-2 ring-yellow-400{% endif %}">
+              🌙 Jornada Actual
+            </button>
+            <button type="submit" name="filtro_rapido" value="ayer" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm
+                    {% if filtros.filtro_rapido == 'ayer' %}ring-2 ring-yellow-400{% endif %}">
+              📅 Jornada Anterior
+            </button>
+            <button type="submit" name="filtro_rapido" value="semana" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm
+                    {% if filtros.filtro_rapido == 'semana' %}ring-2 ring-yellow-400{% endif %}">
+              📊 Esta Semana
+            </button>
+            <button type="submit" name="filtro_rapido" value="mes" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm
+                    {% if filtros.filtro_rapido == 'mes' %}ring-2 ring-yellow-400{% endif %}">
+              📈 Este Mes
+            </button>
+          </div>
+          <button type="submit" 
+                  class="mt-2 bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm">
+            🔄 Limpiar Filtros
+          </button>
+        </div>
+
+        <!-- FILTROS PERSONALIZADOS -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- JORNADA INICIO -->
+          <div>
+            <label class="block text-sm font-medium mb-2">🌅 Jornada Desde:</label>
+            <input 
+              type="date" 
+              name="jornada_inicio" 
+              value="{{ filtros.jornada_inicio or '' }}"
+              class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white"
+              title="Fecha de jornada de inicio (considera cruces de medianoche)"
+              placeholder="Jornada inicio"
+            />
+            <small class="text-gray-400 text-xs">Fecha de jornada unificada</small>
+          </div>
+          
+          <!-- JORNADA FIN -->
+          <div>
+            <label class="block text-sm font-medium mb-2">🌄 Jornada Hasta:</label>
+            <input 
+              type="date" 
+              name="jornada_fin" 
+              value="{{ filtros.jornada_fin or '' }}"
+              class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white"
+              title="Fecha de jornada de fin (considera cruces de medianoche)"
+              placeholder="Jornada fin"
+            />
+            <small class="text-gray-400 text-xs">Agrupa empleados nocturnos</small>
+          </div>
+          
+          <!-- USUARIO -->
+          <div>
+            <label for="usuario-select" class="block text-sm font-medium mb-2">👤 Usuario:</label>
+            <select id="usuario-select" name="usuario" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white">
+              <option value="">Todos los usuarios</option>
+              {% for usuario in usuarios_disponibles %}
+              <option value="{{ usuario.nombre }}" {% if filtros.usuario == usuario.nombre %}selected{% endif %}>
+                {{ usuario.nombre }}
+              </option>
+              {% endfor %}          </select>
+          </div>
+          
+          <!-- TIPO -->
+          <div>
+            <label for="tipo-select" class="block text-sm font-medium mb-2">🎯 Tipo de Descanso:</label>
+            <select id="tipo-select" name="tipo" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white">
+              <option value="">Todos los tipos</option>
+              <option value="Comida" {% if filtros.tipo == 'Comida' %}selected{% endif %}>🍽️ Comida</option>
+              <option value="Descanso" {% if filtros.tipo == 'Descanso' %}selected{% endif %}>☕ Descanso</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- BOTÓN APLICAR FILTROS -->
+        <div class="flex justify-between items-center">
+          <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded font-medium">
+            🔍 Aplicar Filtros Personalizados
+          </button>
+          
+          <div class="text-sm text-gray-400">
+            💡 Los filtros consideran jornadas nocturnas de 21h (09:00-06:00)
+          </div>
+        </div>      </form>
+    </section>
+
+    <!-- INDICADOR DE FILTROS ACTIVOS -->
+    {% if filtros.jornada_inicio or filtros.jornada_fin or filtros.usuario or filtros.tipo or filtros.filtro_rapido %}
+    <section class="bg-blue-900 border border-blue-600 p-4 rounded-lg mb-6">
+      <h3 class="text-sm font-bold mb-2">✅ Filtros Activos:</h3>
+      <div class="flex flex-wrap gap-2 text-sm">
+        {% if filtros.filtro_rapido %}
+        <span class="bg-blue-600 px-2 py-1 rounded">
+          ⚡ {{ {'hoy': 'Jornada Actual', 'ayer': 'Jornada Anterior', 'semana': 'Esta Semana', 'mes': 'Este Mes'}[filtros.filtro_rapido] }}
+        </span>
+        {% endif %}
+        {% if filtros.jornada_inicio %}
+        <span class="bg-purple-600 px-2 py-1 rounded">🌅 Desde: {{ filtros.jornada_inicio }}</span>
+        {% endif %}
+        {% if filtros.jornada_fin %}
+        <span class="bg-purple-600 px-2 py-1 rounded">🌄 Hasta: {{ filtros.jornada_fin }}</span>
+        {% endif %}
+        {% if filtros.usuario %}
+        <span class="bg-green-600 px-2 py-1 rounded">👤 {{ filtros.usuario }}</span>
+        {% endif %}
+        {% if filtros.tipo %}
+        <span class="bg-orange-600 px-2 py-1 rounded">🎯 {{ filtros.tipo }}</span>
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+
+    <!-- ESTADÍSTICAS -->
+    {% if estadisticas.total_registros > 0 %}
+    <section class="bg-gray-800 p-6 rounded-lg mb-6">
+      <h2 class="text-lg font-bold mb-4">📊 Estadísticas de Resultados</h2>
+      
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="text-center">
+          <p class="text-2xl font-bold text-blue-400">{{ estadisticas.total_registros }}</p>
+          <p class="text-sm text-gray-300">Total Registros</p>
+        </div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-green-400">{{ estadisticas.total_horas }}</p>
+          <p class="text-sm text-gray-300">Total Horas</p>
+        </div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-yellow-400">{{ estadisticas.total_minutos }}</p>
+          <p class="text-sm text-gray-300">Total Minutos</p>
+        </div>
+        <div class="text-center">
+          <p class="text-2xl font-bold text-purple-400">{{ estadisticas.promedio_minutos }}</p>
+          <p class="text-sm text-gray-300">Promedio Min</p>
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+    <!-- TABLA DE REGISTROS -->
+    <section class="bg-gray-800 p-6 rounded-lg">
+      <h2 class="text-lg font-bold mb-4">📋 Registros Históricos</h2>
+      
+      {% if historial %}
+      <div class="overflow-x-auto">
+        <table class="table-auto w-full text-left">
+          <thead>
+            <tr class="text-gray-300 border-b border-gray-600">
+              <th class="pb-2 px-2">Nombre</th>
+              <th class="pb-2 px-2">Código</th>
+              <th class="pb-2 px-2">Tipo</th>
+              <th class="pb-2 px-2">Fecha</th>
+              <th class="pb-2 px-2">Inicio</th>
+              <th class="pb-2 px-2">Fin</th>
+              <th class="pb-2 px-2">Duración</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for registro in historial %}
+            <tr class="text-gray-100 border-b border-gray-700 hover:bg-gray-700">
+              <td class="px-2 py-2">{{ registro.nombre }}</td>
+              <td class="px-2 py-2">{{ registro.codigo }}</td>
+              <td class="px-2 py-2">
+                <span class="{% if registro.tipo == 'Comida' %}bg-orange-600{% else %}bg-blue-600{% endif %} px-2 py-1 rounded text-xs">
+                  {{ registro.tipo }}
+                </span>
+              </td>
+              <td class="px-2 py-2">{{ registro.fecha.strftime('%Y-%m-%d') }}</td>
+              <td class="px-2 py-2">{{ registro.inicio.strftime('%H:%M') }}</td>
+              <td class="px-2 py-2">{{ registro.fin.strftime('%H:%M') }}</td>
+              <td class="px-2 py-2">
+                <span class="font-mono">{{ registro.duracion_minutos }} min</span>
+                <span class="text-gray-400 text-xs">({{ "%.1f"|format(registro.duracion_minutos / 60) }}h)</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-8">
+        <p class="text-gray-400">No hay registros que coincidan con los filtros seleccionados</p>
+      </div>
+      {% endif %}
+    </section>
+
+  </main>
+
+  <footer class="mt-8 py-4 text-center text-gray-400 text-sm">
+    <p>&copy; 2025 BreakTime Tracker - Sistema de control de descansos</p>
+  </footer>
+
+  <!-- AUTO-LOGOUT POR INACTIVIDAD (30 minutos) -->
+<script>
+// MISMO CÓDIGO QUE ARRIBA
+let tiempoInactividad = 30 * 60 * 1000;
+let timerLogout;
+
+function resetearTimer() {
+    clearTimeout(timerLogout);
+    timerLogout = setTimeout(() => {
+        alert('Sesión expirada por inactividad. Cerrando sesión...');
+        window.location.href = '{{ url_for("logout") }}';
+    }, tiempoInactividad);
+}
+
+document.addEventListener('mousemove', resetearTimer);
+document.addEventListener('keypress', resetearTimer);
+document.addEventListener('click', resetearTimer);
+document.addEventListener('scroll', resetearTimer);  resetearTimer();
+</script>
+</body>
+</html>

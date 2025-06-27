@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Base de Datos - BreakTime Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  <!-- HEADER MEJORADO -->
+  <header class="flex flex-col sm:flex-row justify-between items-center px-4 sm:px-8 py-4 bg-gray-800 shadow">
+    <div class="mb-4 sm:mb-0 text-center sm:text-left">
+      <h1 class="text-xl sm:text-2xl font-bold">Base de Datos de Usuarios</h1>
+      <p class="text-xs sm:text-sm text-gray-300">Gestión completa de asistentes</p>
+    </div>
+    <!-- REEMPLAZAR la navegación actual por esta: -->
+    <nav class="bg-blue-600 p-4">
+      <div class="container mx-auto flex justify-between items-center">
+        <h1 class="text-white text-xl font-bold">🗂️ Gestión de Usuarios</h1>
+        
+        <!-- ELIMINAR botón Inicio, solo mantener opciones seguras -->
+        <div class="space-x-4">
+          <a href="{{ url_for('registros') }}" class="text-white hover:text-blue-200">📋 Registros</a>
+          <a href="{{ url_for('reportes') }}" class="text-white hover:text-blue-200">📊 Reportes</a>
+          <a href="{{ url_for('logout') }}" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">🚪 Cerrar Sesión</a>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- AGREGAR AVISO DE SEGURIDAD -->
+  <div class="bg-gray-100 p-2 border-b">
+    <div class="container mx-auto text-center text-sm text-gray-600">
+      ⚠️ Área administrativa - Para volver al inicio debe 
+      <a href="{{ url_for('logout') }}" class="text-red-600 underline font-bold">cerrar sesión</a>
+    </div>
+  </div>
+
+  <main class="container mx-auto px-4 py-8">
+    
+    <!-- FORMULARIO PARA AGREGAR USUARIO -->
+    <section class="bg-gray-800 p-6 rounded-lg mb-6">
+      <h2 class="text-lg font-bold mb-4">➕ Agregar Nuevo Asistente</h2>
+      <form method="POST" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div>
+          <label for="nombre" class="block text-sm font-medium mb-2">Nombre Completo:</label>
+          <input 
+            type="text" 
+            id="nombre" 
+            name="nombre" 
+            required 
+            class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white"
+            placeholder="Ej: Juan Pérez"
+          />
+        </div>
+        
+        <div>
+          <label for="tarjeta" class="block text-sm font-medium mb-2">Número de Tarjeta:</label>
+          <input 
+            type="text" 
+            id="tarjeta" 
+            name="tarjeta" 
+            required 
+            class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white"
+            placeholder="Ej: 123456789"
+          />
+        </div>
+        
+        <div>
+          <label for="turno" class="block text-sm font-medium mb-2">Tipo de Turno:</label>
+          <select 
+            id="turno" 
+            name="turno" 
+            required 
+            class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white"
+          >
+            <option value="">Seleccionar turno</option>
+            <option value="Full">Full Time</option>
+            <option value="Part-time">Part Time</option>
+            <option value="Llamado">Llamado</option>
+          </select>
+        </div>
+        
+        <div>
+          <label for="codigo" class="block text-sm font-medium mb-2">Código Asistente:</label>
+          <input 
+            type="text" 
+            id="codigo" 
+            name="codigo" 
+            required 
+            class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white"
+            placeholder="Ej: KA22"
+          />
+        </div>
+        
+        <div class="lg:col-span-4">
+          <button 
+            type="submit" 
+            class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded font-semibold text-white shadow"
+          >
+            ➕ Agregar Asistente
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- TABLA DE USUARIOS CON ACCIONES -->
+    <section class="bg-gray-800 p-6 rounded-lg">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-bold">👥 Lista de Asistentes Registrados</h2>
+        <div class="text-sm text-gray-300">
+          Total: {{ usuarios|length }} usuarios
+        </div>
+      </div>
+      
+      {% if usuarios %}
+      <!-- TABLA PARA PANTALLAS GRANDES -->
+      <div class="hidden sm:block overflow-x-auto">
+        <table class="table-auto w-full text-left">
+          <thead>
+            <tr class="text-gray-300 border-b border-gray-600">
+              <th class="pb-2 px-2">Nombre</th>
+              <th class="pb-2 px-2">Tarjeta</th>
+              <th class="pb-2 px-2">Turno</th>
+              <th class="pb-2 px-2">Código</th>
+              <th class="pb-2 px-2 text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in usuarios %}
+            <tr class="text-gray-100 border-b border-gray-700 hover:bg-gray-700">
+              <td class="px-2 py-2 font-medium">{{ u.nombre }}</td>
+              <td class="px-2 py-2 font-mono text-sm">{{ u.tarjeta }}</td>
+              <td class="px-2 py-2">
+                <span class="{% if u.turno == 'Full' %}bg-green-600{% elif u.turno == 'Part-time' %}bg-yellow-600{% else %}bg-blue-600{% endif %} px-2 py-1 rounded text-xs">
+                  {{ u.turno }}
+                </span>
+              </td>
+              <td class="px-2 py-2 font-mono font-bold">{{ u.codigo }}</td>
+              <td class="px-2 py-2 text-center">
+                <div class="flex justify-center gap-2">
+                  <!-- BOTÓN EDITAR -->
+                  <a 
+                    href="/editar_usuario/{{ u.id }}" 
+                    class="bg-yellow-600 hover:bg-yellow-700 px-2 py-1 rounded text-xs"
+                    title="Editar usuario"
+                  >
+                    ✏️ Editar
+                  </a>
+                  
+                  <!-- BOTÓN ELIMINAR -->
+                  <form method="POST" action="/eliminar_usuario/{{ u.id }}" class="inline" 
+                        onsubmit="return confirm('¿Estás seguro de eliminar a {{ u.nombre }}?')">
+                    <button 
+                      type="submit" 
+                      class="bg-red-600 hover:bg-red-700 px-2 py-1 rounded text-xs"
+                      title="Eliminar usuario"
+                    >
+                      🗑️ Eliminar
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- TARJETAS PARA MÓVILES -->
+      <div class="sm:hidden space-y-4">
+        {% for u in usuarios %}
+        <div class="bg-gray-700 p-4 rounded-lg">
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <h3 class="font-bold text-sm">{{ u.nombre }}</h3>
+              <p class="text-xs text-gray-300 font-mono">{{ u.codigo }}</p>
+            </div>
+            <span class="{% if u.turno == 'Full' %}bg-green-600{% elif u.turno == 'Part-time' %}bg-yellow-600{% else %}bg-blue-600{% endif %} px-2 py-1 rounded text-xs">
+              {{ u.turno }}
+            </span>
+          </div>
+          
+          <div class="grid grid-cols-1 gap-1 text-sm mb-3">
+            <div>
+              <span class="text-gray-400">Tarjeta:</span>
+              <span class="text-white font-mono">{{ u.tarjeta }}</span>
+            </div>
+          </div>
+          
+          <!-- ACCIONES MÓVIL -->
+          <div class="flex gap-2">
+            <a 
+              href="/editar_usuario/{{ u.id }}" 
+              class="bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded text-xs flex-1 text-center"
+            >
+              ✏️ Editar
+            </a>
+            <form method="POST" action="/eliminar_usuario/{{ u.id }}" class="flex-1" 
+                  onsubmit="return confirm('¿Eliminar a {{ u.nombre }}?')">
+              <button 
+                type="submit" 
+                class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-xs w-full"
+              >
+                🗑️ Eliminar
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      
+      {% else %}
+      <div class="text-center py-8">
+        <p class="text-gray-400">No hay usuarios registrados aún</p>
+        <p class="text-sm text-gray-500 mt-2">Usa el formulario de arriba para agregar el primer usuario</p>
+      </div>
+      {% endif %}
+    </section>
+
+  </main>
+
+  <footer class="mt-8 py-4 text-center text-gray-400 text-sm">
+    <p>&copy; 2025 BreakTime Tracker - Sistema de control de descansos</p>
+  </footer>
+
+  <!-- DESHABILITAR ENTER EN CAMPO TARJETA -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const campoTarjeta = document.querySelector('input[name="tarjeta"]');
+    
+    if (campoTarjeta) {
+        // Prevenir ENTER en campo tarjeta
+        campoTarjeta.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' || event.keyCode === 13) {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                // Opcional: mover al siguiente campo
+                const siguienteCampo = document.querySelector('select[name="turno"]');
+                if (siguienteCampo) {
+                    siguienteCampo.focus();
+                }
+                
+                return false;
+            }
+        });
+        
+        // Prevenir submit del formulario con ENTER desde tarjeta
+        campoTarjeta.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter' || event.keyCode === 13) {
+                event.preventDefault();
+                return false;
+            }
+        });
+    }
+    
+    // DESHABILITAR ENTER EN TODO EL FORMULARIO DE AGREGAR
+    const formularioAgregar = document.querySelector('form');
+    if (formularioAgregar) {
+        formularioAgregar.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' || event.keyCode === 13) {
+                // Solo permitir ENTER en el botón Guardar
+                if (event.target.type !== 'submit') {
+                    event.preventDefault();
+                    return false;
+                }
+            }
+        });
+    }
+});
+</script>
+
+  <!-- AUTO-LOGOUT POR INACTIVIDAD (mantener como está) -->
+<script>
+let tiempoInactividad = 30 * 60 * 1000; // 30 minutos en milisegundos
+let timerLogout;
+
+function resetearTimer() {
+    clearTimeout(timerLogout);
+    timerLogout = setTimeout(() => {
+        alert('Sesión expirada por inactividad. Cerrando sesión...');
+        window.location.href = '{{ url_for("logout") }}';
+    }, tiempoInactividad);
+}
+
+// Detectar actividad del usuario
+document.addEventListener('mousemove', resetearTimer);
+document.addEventListener('keypress', resetearTimer);
+document.addEventListener('click', resetearTimer);
+document.addEventListener('scroll', resetearTimer);
+
+// Iniciar timer al cargar página
+resetearTimer();
+</script>
+</body>
+</html>

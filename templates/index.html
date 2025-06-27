@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BreakTime Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const form = document.querySelector('form');
+    const input = document.querySelector('input[name="entrada"]'); // Cambiar de "tarjeta" a "entrada"
+    if (form && input) {
+      form.addEventListener('submit', function () {
+        setTimeout(() => {
+          input.value = '';
+        }, 300);
+      });
+    }
+
+    // Actualizar los tiempos restantes cada minuto
+    const tiempoElements = document.querySelectorAll('[data-inicio][data-tipo]');
+    
+    function actualizarTiempos() {
+      const ahora = new Date();
+      
+      tiempoElements.forEach(el => {
+        const inicioStr = el.dataset.inicio;
+        const tipo = el.dataset.tipo;
+        const inicio = new Date(inicioStr);
+
+        const transcurridoMinutos = Math.floor((ahora - inicio) / 60000);
+        const limite = tipo === 'Comida' ? 40 : 20;
+        const restante = limite - transcurridoMinutos;
+
+        if (restante > 0) {
+          el.innerText = `${restante} min`;
+          el.className = 'px-2 sm:px-4 py-2 text-green-400';
+        } else if (restante === 0) {
+          el.innerText = '0 min';
+          el.className = 'px-2 sm:px-4 py-2 text-yellow-400';
+        } else {
+          el.innerText = `+${Math.abs(restante)} min`;
+          el.className = 'px-2 sm:px-4 py-2 text-red-400';
+        }
+      });
+    }    // Actualizar inmediatamente y luego cada minuto
+    actualizarTiempos();
+    setInterval(actualizarTiempos, 60000);
+    
+    // Auto-refresh solo durante horario de trabajo (19:00 a 05:00)
+    function verificarHorarioYRefrescar() {
+      const ahora = new Date();
+      const hora = ahora.getHours();
+      
+      // Horario de trabajo: 19:00 a 05:00 (incluye cruce de medianoche)
+      const enHorarioTrabajo = hora >= 19 || hora < 5;
+      
+      if (enHorarioTrabajo) {
+        // Refrescar cada 5 minutos durante horario de trabajo
+        setTimeout(function() {
+          window.location.reload();
+        }, 300000); // 300 segundos = 5 minutos
+      } else {
+        // Verificar cada hora si ya es horario de trabajo
+        setTimeout(verificarHorarioYRefrescar, 3600000); // 1 hora
+      }
+    }
+    
+    // Iniciar verificación de horario
+    verificarHorarioYRefrescar();
+  });
+  </script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  <!-- HEADER RESPONSIVE -->
+  <header class="flex flex-col sm:flex-row justify-between items-center px-4 sm:px-8 py-4 bg-gray-800 shadow">
+    <div class="mb-4 sm:mb-0 text-center sm:text-left">
+      <h1 class="text-xl sm:text-2xl font-bold">BreakTime Tracker</h1>
+      <p class="text-xs sm:text-sm text-gray-300">Control de descansos y comidas</p>
+    </div>
+    <!-- NAVEGACIÓN RESPONSIVE -->
+    <nav class="flex flex-wrap justify-center gap-2">
+      <a href="/" class="bg-violet-600 hover:bg-violet-700 px-3 sm:px-4 py-2 rounded text-sm sm:text-base">Inicio</a>
+      <a href="/login" class="bg-blue-600 hover:bg-blue-700 px-3 sm:px-4 py-2 rounded text-sm sm:text-base">Base de Datos</a>
+      <a href="/registros" class="bg-purple-600 hover:bg-purple-700 px-3 sm:px-4 py-2 rounded text-sm sm:text-base">Registros</a>
+      <a href="/reportes" class="bg-green-600 hover:bg-green-700 px-3 sm:px-4 py-2 rounded text-sm sm:text-base">Reportes</a>
+    </nav>
+  </header>
+
+  <!-- MAIN CONTENT RESPONSIVE -->
+  <main class="flex flex-col items-center mt-4 sm:mt-10 px-4">
+    
+    <!-- SECCIÓN LECTOR DE TARJETAS -->
+    <section class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-6xl mb-4 sm:mb-6">
+      <h2 class="text-lg sm:text-xl font-bold mb-4 text-center sm:text-left">🏷️ Lector de Tarjetas</h2>
+      <form method="POST">
+        <div class="border border-dashed border-gray-500 p-4 sm:p-8 text-center mb-4 rounded">
+          <p class="text-gray-300 mb-4 text-sm sm:text-base">Deslice la tarjeta (Número de Rojo)</p>
+          <input 
+            type="text" 
+            name="entrada" 
+            placeholder="Esperando tarjeta..." 
+            class="w-full p-3 sm:p-2 rounded bg-gray-100 text-black text-center text-sm sm:text-base" 
+            autofocus 
+          />
+          <!-- INSTRUCCIÓN DISCRETA PARA CÓDIGOS -->
+          <p class="text-xs text-gray-400 mt-2">
+            💡 Sin tarjeta: escriba su código (KA22, HP30, VS26, CB29...)
+          </p>
+        </div>
+      </form>
+    </section>
+
+    <!-- SECCIÓN TABLA DE DESCANSOS -->
+    <section class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-6xl">
+      <h2 class="text-lg sm:text-xl font-bold mb-4 text-center sm:text-left">Personal en Turno y Descansos</h2>
+      
+      <!-- TABLA PARA PANTALLAS GRANDES -->
+      <div class="hidden sm:block overflow-x-auto">
+        <table class="table-auto w-full text-left">
+          <thead>
+            <tr class="text-gray-300 border-b border-gray-600">
+              <th class="pb-2 px-2">Nombre</th>
+              <th class="pb-2 px-2">Hora de Ingreso</th>
+              <th class="pb-2 px-2">Descanso</th>
+              <th class="pb-2 px-2">Tiempo Restante</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for descanso in descansos %}
+            <tr class="text-gray-100 border-b border-gray-700">
+              <td class="px-2 py-2">{{ descanso.nombre }} ({{ descanso.codigo }})</td>
+              <td class="px-2 py-2">{{ descanso.inicio.strftime('%H:%M') }}</td>
+              <td class="px-2 py-2">
+                <span class="{% if descanso.tipo == 'Comida' %}bg-orange-600{% else %}bg-blue-600{% endif %} px-2 py-1 rounded text-xs">
+                  {{ descanso.tipo }}
+                </span>
+              </td>
+              <td class="px-2 py-2" data-inicio="{{ descanso.inicio.isoformat() }}" data-tipo="{{ descanso.tipo }}">
+                {{ descanso.tiempo_restante }} min
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- TARJETAS PARA MÓVILES -->
+      <div class="sm:hidden space-y-4">
+        {% for descanso in descansos %}
+        <div class="bg-gray-700 p-4 rounded-lg">
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <h3 class="font-bold text-sm">{{ descanso.nombre }}</h3>
+              <p class="text-xs text-gray-300">({{ descanso.codigo }})</p>
+            </div>
+            <span class="{% if descanso.tipo == 'Comida' %}bg-orange-600{% else %}bg-blue-600{% endif %} px-2 py-1 rounded text-xs">
+              {{ descanso.tipo }}
+            </span>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <span class="text-gray-400">Inicio:</span>
+              <span class="text-white">{{ descanso.inicio.strftime('%H:%M') }}</span>
+            </div>
+            <div>
+              <span class="text-gray-400">Restante:</span>
+              <span class="text-white" data-inicio="{{ descanso.inicio.isoformat() }}" data-tipo="{{ descanso.tipo }}">
+                {{ descanso.tiempo_restante }} min
+              </span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- MENSAJE CUANDO NO HAY DESCANSOS -->
+      {% if not descansos %}
+      <div class="text-center py-8">
+        <p class="text-gray-400 text-sm sm:text-base">No hay personal en descanso actualmente</p>
+      </div>
+      {% endif %}
+    </section>
+
+  </main>
+  <!-- PIE DE PÁGINA -->
+  <footer class="mt-8 sm:mt-12 py-4 text-center text-gray-400 text-xs sm:text-sm">
+    <p>&copy; 2025 BreakTime Tracker - Sistema de control de descansos</p>
+  </footer>
+</body>
+</html>

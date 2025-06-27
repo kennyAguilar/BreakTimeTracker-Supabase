@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Dashboard y Reportes - BreakTimeTracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="reportes-body">
+
+<nav class="navbar navbar-expand-lg navbar-dark navbar-reportes">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="{{ url_for('index') }}">
+            📊 Dashboard y Reportes
+        </a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link active" href="{{ url_for('reportes') }}">📊 Dashboard y Reportes</a>
+            <a class="nav-link" href="{{ url_for('base_datos') }}">👥 Usuarios</a>
+            <a class="nav-link" href="{{ url_for('registros') }}">📝 Registros</a>
+            <a class="nav-link logout-link" href="{{ url_for('logout') }}">🚪 Cerrar Sesión</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    
+    <!-- ======= ESTADÍSTICAS DE HOY ======= -->
+    <h3 class="section-title">📅 Estadísticas de Hoy ({{ fecha_hoy }})</h3>
+    
+    {% if stats_hoy %}
+    <div class="row-5-cols">
+        <div class="stats-card azul">
+            <div class="stat-number">{{ stats_hoy.total_descansos }}</div>
+            <div class="stat-label">Total Descansos</div>
+            <div class="stat-detail">{{ (stats_hoy.total_minutos / 60) | round(1) }}h</div>
+        </div>
+        
+        <div class="stats-card verde">
+            <div class="stat-number">{{ (stats_hoy.total_minutos / 60) | round(1) }}h</div>
+            <div class="stat-label">Total Horas</div>
+            <div class="stat-detail">{{ stats_hoy.total_minutos }} minutos</div>
+        </div>
+        
+        <div class="stats-card marron">
+            <div class="stat-number">{{ stats_hoy.promedio_minutos | round(1) }}min</div>
+            <div class="stat-label">Promedio</div>
+            <div class="stat-detail">por descanso</div>
+        </div>
+        
+        <div class="stats-card gris">
+            <div class="stat-number">{{ stats_hoy.total_comidas }}</div>
+            <div class="stat-label">Comidas (40min)</div>
+            <div class="stat-detail">{{ (stats_hoy.minutos_comida / 60) | round(1) }}h</div>
+        </div>
+        
+        <div class="stats-card morado">
+            <div class="stat-number">{{ stats_hoy.total_descansos_cortos }}</div>
+            <div class="stat-label">Descansos (20min)</div>
+            <div class="stat-detail">{{ (stats_hoy.minutos_descanso / 60) | round(1) }}h</div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- ======= ESTADÍSTICAS DE ESTA SEMANA ======= -->
+    <h3 class="section-title mt-5">📈 Estadísticas de Esta Semana</h3>
+    
+    {% if stats_semana %}
+    <div class="row-3-cols">
+        <div class="stats-card azul">
+            <div class="stat-number">{{ stats_semana.total_descansos }}</div>
+            <div class="stat-label">Descansos Totales</div>
+            <div class="stat-detail">toda la semana</div>
+        </div>
+        
+        <div class="stats-card verde">
+            <div class="stat-number">{{ (stats_semana.total_minutos / 60) | round(1) }}h</div>
+            <div class="stat-label">Horas de Descanso</div>
+            <div class="stat-detail">{{ stats_semana.total_minutos }} minutos</div>
+        </div>
+        
+        <div class="stats-card marron">
+            <div class="stat-number">{{ stats_semana.promedio_minutos | round(1) }}min</div>
+            <div class="stat-label">Promedio por Descanso</div>
+            <div class="stat-detail">esta semana</div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- ======= TOP USUARIOS QUE MÁS SE EXCEDEN ======= -->
+    {% if top_usuarios %}
+    <h3 class="section-title mt-5">🏆 Top Usuarios Esta Semana</h3>
+    <p class="text-muted mb-3">Ordenados por minutos de exceso totales (Comidas >40min | Descansos >20min)</p>
+    
+    <div class="tabla-dark">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Usuario</th>
+                    <th>Código</th>
+                    <th>Descansos</th>
+                    <th>Total Horas</th>
+                    <th>🍽️ Exceso Comidas</th>
+                    <th>☕ Exceso Descansos</th>
+                    <th>⚠️ Total Exceso</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for usuario in top_usuarios %}
+                <tr>
+                    <td><strong>{{ loop.index }}</strong></td>
+                    <td><strong>{{ usuario.nombre }}</strong></td>
+                    <td><span class="badge badge-custom badge-codigo">{{ usuario.codigo }}</span></td>
+                    <td>
+                        <span class="badge badge-custom badge-azul">{{ usuario.total_descansos }}</span>
+                        <small class="d-block mt-1 text-muted">
+                            🍽️{{ usuario.total_comidas }} ☕{{ usuario.total_descansos_cortos }}
+                        </small>
+                    </td>
+                    <td><strong>{{ (usuario.total_minutos / 60) | round(1) }}h</strong></td>
+                    
+                    <!-- EXCESO COMIDAS -->
+                    <td>
+                        {% if usuario.exceso_comidas > 0 %}
+                        <span class="badge badge-rojo">{{ usuario.exceso_comidas }} min</span>
+                        {% if usuario.comidas_con_exceso > 0 %}
+                        <small class="d-block mt-1 text-muted">{{ usuario.comidas_con_exceso }} comidas</small>
+                        {% endif %}
+                        {% else %}
+                        <span class="badge badge-normal">0 min</span>
+                        {% endif %}
+                    </td>
+                    
+                    <!-- EXCESO DESCANSOS -->
+                    <td>
+                        {% if usuario.exceso_descansos > 0 %}
+                        <span class="badge badge-amarillo">{{ usuario.exceso_descansos }} min</span>
+                        {% if usuario.descansos_con_exceso > 0 %}
+                        <small class="d-block mt-1 text-muted">{{ usuario.descansos_con_exceso }} descansos</small>
+                        {% endif %}
+                        {% else %}
+                        <span class="badge badge-normal">0 min</span>
+                        {% endif %}
+                    </td>
+                    
+                    <!-- TOTAL EXCESO -->
+                    <td>
+                        {% if usuario.total_exceso > 0 %}
+                        <span class="badge badge-exceso">{{ usuario.total_exceso }} min</span>
+                        {% else %}
+                        <span class="badge badge-normal">0 min</span>
+                        {% endif %}
+                    </td>
+                    
+                    <!-- ESTADO DETALLADO -->
+                    <td>
+                        {% if usuario.exceso_comidas > 30 or usuario.exceso_descansos > 30 %}
+                        <span class="badge badge-exceso">Alto Exceso</span>
+                        {% elif usuario.exceso_comidas > 0 and usuario.exceso_descansos > 0 %}
+                        <span class="badge badge-rojo">Ambos Tipos</span>
+                        {% elif usuario.exceso_comidas > 0 %}                        <span class="badge badge-amarillo">Solo Comidas</span>
+                        {% elif usuario.exceso_descansos > 0 %}
+                        <span class="badge badge-amarillo">Solo Descansos</span>
+                        {% else %}
+                        <span class="badge badge-normal">Normal</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    <!-- ======= DESCANSOS POR DÍA ======= -->
+    {% if descansos_por_dia %}
+    <h3 class="section-title mt-5">📅 Descansos por Día (Últimos 7 días)</h3>
+    
+    <div class="tabla-dark">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Cantidad</th>
+                    <th>Total Horas</th>
+                    <th>🍽️ Comidas</th>
+                    <th>☕ Descansos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dia in descansos_por_dia %}
+                <tr>
+                    <td><strong>{{ dia.fecha.strftime('%d/%m/%Y') }}</strong></td>
+                    <td><span class="badge badge-custom badge-azul">{{ dia.cantidad_total }}</span></td>
+                    <td><strong>{{ (dia.minutos_total / 60) | round(1) }}h</strong></td>
+                    <td>{{ dia.cantidad_comidas }} ({{ (dia.minutos_comidas / 60) | round(1) }}h)</td>
+                    <td>{{ dia.cantidad_descansos }} ({{ (dia.minutos_descansos / 60) | round(1) }}h)</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    <!-- Resto del contenido... -->
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

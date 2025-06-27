@@ -1,0 +1,328 @@
+/* ESTILOS GENERALES */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ANIMACIONES PARA MENSAJES FLASH */
+.flash-message {
+    animation: slideInRight 0.3s ease-out forwards;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* EFECTO HOVER PARA BOTONES */
+.btn-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+}
+
+/* ESTILOS PARA TARJETAS MÓVILES */
+.card-mobile {
+    background: linear-gradient(135deg, #374151 0%, #4B5563 100%);
+    border-left: 4px solid #6366F1;
+}
+
+/* EFECTOS PARA LA TABLA */
+.table-row:hover {
+    background-color: rgba(107, 114, 128, 0.1);
+    transition: background-color 0.2s ease;
+}
+
+/* ESTILOS PARA EL INPUT DE TARJETA */
+.card-input {
+    border: 2px solid #6B7280;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-input:focus {
+    border-color: #6366F1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    outline: none;
+}
+
+/* INDICADORES DE TIEMPO */
+.tiempo-normal {
+    color: #10B981; /* Verde */
+}
+
+.tiempo-advertencia {
+    color: #F59E0B; /* Amarillo */
+    animation: pulse 2s infinite;
+}
+
+.tiempo-excedido {
+    color: #EF4444; /* Rojo */
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* BADGES MEJORADOS */
+.badge-comida {
+    background: linear-gradient(135deg, #EA580C 0%, #DC2626 100%);
+    box-shadow: 0 2px 4px rgba(234, 88, 12, 0.3);
+}
+
+.badge-descanso {
+    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+}
+
+/* HEADER MEJORADO */
+.header-gradient {
+    background: linear-gradient(135deg, #1F2937 0%, #374151 100%);
+}
+
+/* LOADING SPINNER */
+.spinner {
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #6366F1;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    margin-left: 8px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* RESPONSIVE MEJORAS */
+@media (max-width: 640px) {
+    .card-mobile {
+        margin-bottom: 1rem;
+    }
+    
+    .flash-message {
+        max-width: calc(100vw - 2rem);
+        margin: 0 1rem;
+    }
+}
+
+/* EFECTOS DE FOCUS PARA ACCESIBILIDAD */
+.focus-visible:focus {
+    outline: 2px solid #6366F1;
+    outline-offset: 2px;
+}
+
+/* TRANSICIONES SUAVES */
+* {
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+/* ======= ESTILOS PARA DASHBOARD DE REPORTES ======= */
+
+/* TEMA OSCURO PARA REPORTES */
+.reportes-body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+}
+
+/* TARJETAS DE ESTADÍSTICAS */
+.stats-card {
+    background: #2d3748;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    border: 1px solid #4a5568;
+    text-align: center;
+    height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.stats-card.azul { 
+    background: linear-gradient(135deg, #2b6cb0 0%, #2c5aa0 100%); 
+}
+
+.stats-card.verde { 
+    background: linear-gradient(135deg, #059669 0%, #047857 100%); 
+}
+
+.stats-card.marron { 
+    background: linear-gradient(135deg, #92400e 0%, #78350f 100%); 
+}
+
+.stats-card.gris { 
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%); 
+}
+
+.stats-card.morado { 
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); 
+}
+
+/* NÚMEROS Y ETIQUETAS DE ESTADÍSTICAS */
+.stat-number {
+    font-size: 2.2rem;
+    font-weight: bold;
+    color: #ffffff;
+    margin: 0;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: #e2e8f0;
+    margin-top: 5px;
+    font-weight: 500;
+}
+
+.stat-detail {
+    font-size: 0.75rem;
+    color: #cbd5e0;
+    margin-top: 2px;
+}
+
+/* TÍTULOS DE SECCIÓN */
+.section-title {
+    color: #ffffff;
+    border-bottom: 2px solid #4299e1;
+    padding-bottom: 8px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.5rem;
+}
+
+/* EMPLEADOS ACTIVOS */
+.empleado-activo {
+    background: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-left: 4px solid #fbbf24;
+}
+
+/* TABLAS OSCURAS */
+.tabla-dark {
+    background: #2d3748;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    border: 1px solid #4a5568;
+}
+
+.tabla-dark th {
+    background-color: #1a202c;
+    color: #e2e8f0;
+    font-weight: 600;
+    border-bottom: 2px solid #4a5568;
+    padding: 12px;
+}
+
+.tabla-dark td {
+    background-color: #2d3748;
+    color: #e2e8f0;
+    border-bottom: 1px solid #4a5568;
+    padding: 12px;
+}
+
+.tabla-dark tr:hover td {
+    background-color: #374151;
+}
+
+/* BADGES PERSONALIZADOS */
+.badge-custom {
+    font-size: 0.8rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.badge-exceso {
+    background-color: #dc2626;
+    color: white;
+}
+
+.badge-normal {
+    background-color: #059669;
+    color: white;
+}
+
+/* NAVBAR OSCURA */
+.navbar-dark .navbar-nav .nav-link.active {
+    background-color: rgba(255,255,255,0.1);
+    border-radius: 6px;
+}
+
+.navbar-reportes {
+    background-color: #1a202c;
+}
+
+.logout-link {
+    background-color: #dc2626;
+    border-radius: 6px;
+}
+
+/* GRID DE 5 COLUMNAS */
+.row-5-cols {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+/* GRID DE 3 COLUMNAS PARA SEMANA */
+.row-3-cols {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+/* BADGES CON COLORES ESPECÍFICOS */
+.badge-codigo {
+    background-color: #4a5568;
+}
+
+.badge-azul {
+    background-color: #2563eb;
+}
+
+.badge-rojo {
+    background-color: #dc2626;
+    color: white;
+}
+
+.badge-amarillo {
+    background-color: #f59e0b;
+    color: white;
+}
+
+/* RESPONSIVE */
+@media (max-width: 1200px) {
+    .row-5-cols {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .row-5-cols, .row-3-cols {
+        grid-template-columns: 1fr;
+    }
+}
