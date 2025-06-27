@@ -713,12 +713,27 @@ def reportes():
         fecha_fin = date.today().isoformat()
     
     try:
-        # Obtener todos los registros del período
+        # Obtener todos los registros del período con manejo de errores mejorado
+        print(f"🔍 Obteniendo reportes para período: {fecha_inicio} a {fecha_fin}")
+        
         response = supabase.table('tiempos_descanso').select("*, usuarios(nombre, codigo)")\
             .gte('fecha', fecha_inicio)\
             .lte('fecha', fecha_fin)\
             .execute()
-        registros = response.data
+        
+        registros = response.data if response.data else []
+        print(f"📊 Registros obtenidos: {len(registros)}")
+        
+        # Filtrar registros con datos válidos
+        registros_validos = []
+        for r in registros:
+            if r and r.get('usuarios') and r.get('usuarios', {}).get('nombre'):
+                registros_validos.append(r)
+            else:
+                print(f"⚠️ Registro con datos incompletos ignorado: {r.get('id', 'ID desconocido')}")
+        
+        print(f"✅ Registros válidos para procesar: {len(registros_validos)}")
+        registros = registros_validos
         
         # === ESTADÍSTICAS DE HOY ===
         fecha_hoy = date.today().isoformat()
@@ -778,55 +793,70 @@ def reportes():
         tiempo_total_descansos = 0
         tiempo_total_comidas = 0
         
+        # Procesar registros con manejo de errores
         for r in registros:
-            usuario_nombre = r['usuarios']['nombre']
-            fecha = r['fecha']
-            tipo = r['tipo']
-            duracion = r['duracion_minutos']
-            
-            # Stats por usuario
-            if usuario_nombre not in stats_por_usuario:
-                stats_por_usuario[usuario_nombre] = {
-                    'descansos': 0,
-                    'comidas': 0,
-                    'tiempo_descansos': 0,
-                    'tiempo_comidas': 0,
-                    'tiempo_total': 0,
-                    'exceso_total': 0  # Para calcular usuarios que más se exceden
-                }
-            
-            # Stats por día
-            if fecha not in stats_por_dia:
-                stats_por_dia[fecha] = {
-                    'descansos': 0,
-                    'comidas': 0,
-                    'usuarios_unicos': set()
-                }
-            
-            # Calcular exceso
-            exceso = 0
-            if tipo == 'DESCANSO' and duracion > 20:
-                exceso = duracion - 20
-            elif tipo == 'COMIDA' and duracion > 40:
-                exceso = duracion - 40
-            
-            # Actualizar contadores
-            if tipo == 'DESCANSO':
-                stats_por_usuario[usuario_nombre]['descansos'] += 1
-                stats_por_usuario[usuario_nombre]['tiempo_descansos'] += duracion
-                stats_por_dia[fecha]['descansos'] += 1
-                total_descansos += 1
-                tiempo_total_descansos += duracion
-            else:
-                stats_por_usuario[usuario_nombre]['comidas'] += 1
-                stats_por_usuario[usuario_nombre]['tiempo_comidas'] += duracion
-                stats_por_dia[fecha]['comidas'] += 1
-                total_comidas += 1
-                tiempo_total_comidas += duracion
-            
-            stats_por_usuario[usuario_nombre]['tiempo_total'] += duracion
-            stats_por_usuario[usuario_nombre]['exceso_total'] += exceso
-            stats_por_dia[fecha]['usuarios_unicos'].add(usuario_nombre)
+            try:
+                usuario_nombre = r['usuarios']['nombre'] if r.get('usuarios') and r['usuarios'].get('nombre') else 'Usuario Desconocido'
+                fecha = r.get('fecha', date.today().isoformat())
+                tipo = r.get('tipo', 'DESCANSO')
+                duracion = r.get('duracion_minutos', 0)
+                
+                # Validar datos
+                if not usuario_nombre or usuario_nombre == 'Usuario Desconocido':
+                    print(f"⚠️ Usuario sin nombre en registro ID: {r.get('id', 'desconocido')}")
+                    continue
+                
+                if duracion <= 0:
+                    print(f"⚠️ Duración inválida ({duracion}) en registro ID: {r.get('id', 'desconocido')}")
+                    continue
+                
+                # Stats por usuario
+                if usuario_nombre not in stats_por_usuario:
+                    stats_por_usuario[usuario_nombre] = {
+                        'descansos': 0,
+                        'comidas': 0,
+                        'tiempo_descansos': 0,
+                        'tiempo_comidas': 0,
+                        'tiempo_total': 0,
+                        'exceso_total': 0  # Para calcular usuarios que más se exceden
+                    }
+                
+                # Stats por día
+                if fecha not in stats_por_dia:
+                    stats_por_dia[fecha] = {
+                        'descansos': 0,
+                        'comidas': 0,
+                        'usuarios_unicos': set()
+                    }
+                
+                # Calcular exceso
+                exceso = 0
+                if tipo == 'DESCANSO' and duracion > 20:
+                    exceso = duracion - 20
+                elif tipo == 'COMIDA' and duracion > 40:
+                    exceso = duracion - 40
+                
+                # Actualizar contadores
+                if tipo == 'DESCANSO':
+                    stats_por_usuario[usuario_nombre]['descansos'] += 1
+                    stats_por_usuario[usuario_nombre]['tiempo_descansos'] += duracion
+                    stats_por_dia[fecha]['descansos'] += 1
+                    total_descansos += 1
+                    tiempo_total_descansos += duracion
+                else:
+                    stats_por_usuario[usuario_nombre]['comidas'] += 1
+                    stats_por_usuario[usuario_nombre]['tiempo_comidas'] += duracion
+                    stats_por_dia[fecha]['comidas'] += 1
+                    total_comidas += 1
+                    tiempo_total_comidas += duracion
+                
+                stats_por_usuario[usuario_nombre]['tiempo_total'] += duracion
+                stats_por_usuario[usuario_nombre]['exceso_total'] += exceso
+                stats_por_dia[fecha]['usuarios_unicos'].add(usuario_nombre)
+                
+            except Exception as e_registro:
+                print(f"❌ Error procesando registro ID {r.get('id', 'desconocido')}: {e_registro}")
+                continue
         
         # Convertir sets a conteos
         for fecha in stats_por_dia:
@@ -869,7 +899,10 @@ def reportes():
         }
         
     except Exception as e:
-        print(f"Error al generar reportes: {e}")
+        print(f"❌ Error detallado al generar reportes: {e}")
+        print(f"📊 Tipo de error: {type(e).__name__}")
+        print(f"📍 Stack trace: {traceback.format_exc()}")
+        
         # Valores por defecto en caso de error
         stats_hoy = {
             'total_descansos': 0,
@@ -885,7 +918,14 @@ def reportes():
             'total_minutos': 0,
             'promedio_minutos': 0
         }
-        estadisticas = {}
+        estadisticas = {
+            'total_descansos': 0,
+            'total_comidas': 0,
+            'tiempo_total_descansos': 0,
+            'tiempo_total_comidas': 0,
+            'promedio_descanso': 0,
+            'promedio_comida': 0
+        }
         top_usuarios_formateado = []
         datos_grafico = {'fechas': [], 'descansos': [], 'comidas': []}
     
@@ -898,6 +938,93 @@ def reportes():
                          datos_grafico=datos_grafico,
                          fecha_inicio=fecha_inicio,
                          fecha_fin=fecha_fin)
+
+# Versión simplificada de reportes para debugging
+@app.route('/reportes_simple')
+@login_required
+def reportes_simple():
+    """Versión simplificada de reportes para identificar problemas"""
+    fecha_inicio = request.args.get('fecha_inicio', (date.today() - timedelta(days=30)).isoformat())
+    fecha_fin = request.args.get('fecha_fin', date.today().isoformat())
+    
+    try:
+        print(f"🔍 Reportes simple - Período: {fecha_inicio} a {fecha_fin}")
+        
+        # Consulta básica sin JOIN complicado
+        response = supabase.table('tiempos_descanso').select("*")\
+            .gte('fecha', fecha_inicio)\
+            .lte('fecha', fecha_fin)\
+            .execute()
+        
+        registros_raw = response.data or []
+        print(f"📊 Registros obtenidos: {len(registros_raw)}")
+        
+        # Estadísticas básicas
+        total_registros = len(registros_raw)
+        total_descansos = len([r for r in registros_raw if r.get('tipo') == 'DESCANSO'])
+        total_comidas = len([r for r in registros_raw if r.get('tipo') == 'COMIDA'])
+        tiempo_total = sum(r.get('duracion_minutos', 0) for r in registros_raw)
+        
+        estadisticas = {
+            'total_descansos': total_descansos,
+            'total_comidas': total_comidas,
+            'tiempo_total_descansos': sum(r.get('duracion_minutos', 0) for r in registros_raw if r.get('tipo') == 'DESCANSO'),
+            'tiempo_total_comidas': sum(r.get('duracion_minutos', 0) for r in registros_raw if r.get('tipo') == 'COMIDA'),
+            'promedio_descanso': 0,
+            'promedio_comida': 0
+        }
+        
+        # Calcular promedios
+        if total_descansos > 0:
+            estadisticas['promedio_descanso'] = round(estadisticas['tiempo_total_descansos'] / total_descansos, 1)
+        if total_comidas > 0:
+            estadisticas['promedio_comida'] = round(estadisticas['tiempo_total_comidas'] / total_comidas, 1)
+        
+        # Stats de hoy
+        fecha_hoy = date.today().isoformat()
+        registros_hoy = [r for r in registros_raw if r.get('fecha') == fecha_hoy]
+        
+        stats_hoy = {
+            'total_descansos': len(registros_hoy),
+            'total_minutos': sum(r.get('duracion_minutos', 0) for r in registros_hoy),
+            'promedio_minutos': round(sum(r.get('duracion_minutos', 0) for r in registros_hoy) / len(registros_hoy), 1) if registros_hoy else 0,
+            'total_comidas': len([r for r in registros_hoy if r.get('tipo') == 'COMIDA']),
+            'total_descansos_cortos': len([r for r in registros_hoy if r.get('tipo') == 'DESCANSO']),
+            'minutos_comida': sum(r.get('duracion_minutos', 0) for r in registros_hoy if r.get('tipo') == 'COMIDA'),
+            'minutos_descanso': sum(r.get('duracion_minutos', 0) for r in registros_hoy if r.get('tipo') == 'DESCANSO')
+        }
+        
+        # Stats de la semana
+        fecha_inicio_semana = (date.today() - timedelta(days=7)).isoformat()
+        registros_semana = [r for r in registros_raw if r.get('fecha', '') >= fecha_inicio_semana]
+        
+        stats_semana = {
+            'total_descansos': len(registros_semana),
+            'total_minutos': sum(r.get('duracion_minutos', 0) for r in registros_semana),
+            'promedio_minutos': round(sum(r.get('duracion_minutos', 0) for r in registros_semana) / len(registros_semana), 1) if registros_semana else 0
+        }
+        
+        # Datos de gráfico básicos
+        datos_grafico = {
+            'fechas': ['Últimos 7 días'],
+            'descansos': [len([r for r in registros_semana if r.get('tipo') == 'DESCANSO'])],
+            'comidas': [len([r for r in registros_semana if r.get('tipo') == 'COMIDA'])]
+        }
+        
+        return render_template('reportes.html',
+                             estadisticas=estadisticas,
+                             top_usuarios=[],  # Vacío por ahora
+                             stats_hoy=stats_hoy,
+                             stats_semana=stats_semana,
+                             fecha_hoy=date.today().strftime('%d/%m/%Y'),
+                             datos_grafico=datos_grafico,
+                             fecha_inicio=fecha_inicio,
+                             fecha_fin=fecha_fin)
+        
+    except Exception as e:
+        print(f"❌ Error en reportes simple: {e}")
+        print(f"📍 Stack trace: {traceback.format_exc()}")
+        return render_template('error.html', error=f'Error en reportes: {str(e)}')
 
 # Exportar a CSV
 @app.route('/exportar_csv')
@@ -1531,6 +1658,89 @@ def health_check():
         return {"status": "healthy", "database": "connected"}, 200
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}, 500
+
+# Ruta de debug específica para reportes
+@app.route('/debug_reportes')
+def debug_reportes():
+    """Diagnóstico específico para la función de reportes"""
+    try:
+        debug_info = []
+        debug_info.append("=== DEBUG REPORTES ===")
+        
+        # Probar conexión básica
+        debug_info.append("1. Probando conexión a Supabase...")
+        test_response = supabase.table('usuarios').select("id").limit(1).execute()
+        debug_info.append(f"✅ Conexión OK - {len(test_response.data)} usuarios encontrados")
+        
+        # Probar consulta de tiempos_descanso
+        debug_info.append("2. Probando tabla tiempos_descanso...")
+        fecha_inicio = (date.today() - timedelta(days=7)).isoformat()
+        fecha_fin = date.today().isoformat()
+        
+        # Consulta básica sin JOIN
+        basic_response = supabase.table('tiempos_descanso').select("*").limit(5).execute()
+        debug_info.append(f"✅ Consulta básica OK - {len(basic_response.data)} registros")
+        
+        if basic_response.data:
+            debug_info.append("📋 Estructura de registro:")
+            sample = basic_response.data[0]
+            for key, value in sample.items():
+                debug_info.append(f"   {key}: {type(value).__name__} = {value}")
+        
+        # Probar consulta con JOIN
+        debug_info.append("3. Probando consulta con JOIN...")
+        try:
+            join_response = supabase.table('tiempos_descanso').select("*, usuarios(nombre, codigo)").limit(3).execute()
+            debug_info.append(f"✅ JOIN OK - {len(join_response.data)} registros")
+            
+            if join_response.data:
+                debug_info.append("📋 Estructura con JOIN:")
+                sample_join = join_response.data[0]
+                debug_info.append(f"   usuarios: {sample_join.get('usuarios', 'NO ENCONTRADO')}")
+                
+        except Exception as e_join:
+            debug_info.append(f"❌ Error en JOIN: {e_join}")
+        
+        # Probar consulta con filtros de fecha
+        debug_info.append("4. Probando consulta con filtros de fecha...")
+        try:
+            filtered_response = supabase.table('tiempos_descanso').select("*, usuarios(nombre, codigo)")\
+                .gte('fecha', fecha_inicio)\
+                .lte('fecha', fecha_fin)\
+                .execute()
+            debug_info.append(f"✅ Filtros OK - {len(filtered_response.data)} registros en período")
+            
+        except Exception as e_filter:
+            debug_info.append(f"❌ Error en filtros: {e_filter}")
+        
+        debug_info.append("5. Verificando estructura de datos...")
+        if filtered_response.data:
+            for i, record in enumerate(filtered_response.data[:3]):
+                debug_info.append(f"   Registro {i+1}:")
+                debug_info.append(f"     ID: {record.get('id', 'NO ID')}")
+                debug_info.append(f"     Fecha: {record.get('fecha', 'NO FECHA')}")
+                debug_info.append(f"     Tipo: {record.get('tipo', 'NO TIPO')}")
+                debug_info.append(f"     Duración: {record.get('duracion_minutos', 'NO DURACIÓN')}")
+                debug_info.append(f"     Usuario: {record.get('usuarios', 'NO USUARIO')}")
+        
+        return jsonify({
+            'success': True,
+            'debug_info': debug_info,
+            'sample_data': {
+                'basic_count': len(basic_response.data) if basic_response.data else 0,
+                'join_count': len(join_response.data) if 'join_response' in locals() and join_response.data else 0,
+                'filtered_count': len(filtered_response.data) if 'filtered_response' in locals() and filtered_response.data else 0
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'error_type': type(e).__name__,
+            'debug_info': debug_info if 'debug_info' in locals() else [],
+            'traceback': traceback.format_exc()
+        })
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
