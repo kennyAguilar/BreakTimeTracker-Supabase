@@ -1506,5 +1506,16 @@ def debug_close_break(descanso_id):
     
     return "<pre>" + "\n".join(debug_info) + "</pre>"
 
+# Health check para Render
+@app.route('/health')
+def health_check():
+    """Health check endpoint para Render"""
+    try:
+        # Verificar conexión a Supabase
+        test_response = supabase.table('usuarios').select("id").limit(1).execute()
+        return {"status": "healthy", "database": "connected"}, 200
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}, 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
