@@ -21,6 +21,20 @@
 
   <main class="container mx-auto px-4 py-8">
     
+    <!-- MENSAJES DE ÉXITO/ERROR -->
+    {% if mensaje %}
+    <div class="mb-6 p-4 rounded-lg {% if tipo_mensaje == 'success' %}bg-green-800 border border-green-600 text-green-100{% else %}bg-red-800 border border-red-600 text-red-100{% endif %}">
+      <div class="flex items-start">
+        <span class="mr-2 flex-shrink-0">
+          {% if tipo_mensaje == 'success' %}✅{% else %}❌{% endif %}
+        </span>
+        <div>
+          <pre class="whitespace-pre-wrap text-sm">{{ mensaje }}</pre>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    
     <!-- FORMULARIO DE EDICIÓN -->
     <section class="bg-gray-800 p-6 rounded-lg max-w-2xl mx-auto">
       <div class="mb-6">
@@ -72,8 +86,8 @@
             required 
             class="w-full p-3 rounded bg-gray-700 border border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           >
-            <option value="Full" {% if usuario.turno == 'Full' %}selected{% endif %}>Full Time</option>
-            <option value="Part-time" {% if usuario.turno == 'Part-time' %}selected{% endif %}>Part Time</option>
+            <option value="Full Time" {% if usuario.turno == 'Full Time' %}selected{% endif %}>Full Time</option>
+            <option value="Part Time" {% if usuario.turno == 'Part Time' %}selected{% endif %}>Part Time</option>
             <option value="Llamado" {% if usuario.turno == 'Llamado' %}selected{% endif %}>Llamado</option>
           </select>
         </div>

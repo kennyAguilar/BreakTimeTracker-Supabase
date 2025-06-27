@@ -26,16 +26,16 @@ conexion_supabase_status = {
 
 # Cliente Supabase
 try:
-    print("🔧 Iniciando conexión a Supabase...")
+    print("Iniciando conexión a Supabase...")
     
     # Verificar variables de entorno
     supabase_url = os.getenv('SUPABASE_URL')
     supabase_anon_key = os.getenv('SUPABASE_ANON_KEY')
     supabase_service_key = os.getenv('SUPABASE_SERVICE_KEY')
     
-    print(f"📊 SUPABASE_URL: {'✓ Configurada' if supabase_url else '✗ NO ENCONTRADA'}")
-    print(f"📊 SUPABASE_ANON_KEY: {'✓ Configurada' if supabase_anon_key else '✗ NO ENCONTRADA'}")
-    print(f"📊 SUPABASE_SERVICE_KEY: {'✓ Configurada' if supabase_service_key else '✗ NO ENCONTRADA'}")
+    print(f"SUPABASE_URL: {'CONFIGURADA' if supabase_url else 'NO ENCONTRADA'}")
+    print(f"SUPABASE_ANON_KEY: {'CONFIGURADA' if supabase_anon_key else 'NO ENCONTRADA'}")
+    print(f"SUPABASE_SERVICE_KEY: {'CONFIGURADA' if supabase_service_key else 'NO ENCONTRADA'}")
     
     if not supabase_url or not supabase_anon_key or not supabase_service_key:
         conexion_supabase_status.update({
@@ -120,8 +120,11 @@ def cerrar_descanso_usuario(usuario_id, descanso_activo):
         
         # Calcular duración
         inicio = datetime.fromisoformat(descanso_activo['inicio'].replace('Z', '+00:00'))
-        fin = get_current_time()
-        duracion_minutos = int((fin - inicio).total_seconds() / 60)
+        if inicio.tzinfo is None:
+            inicio = inicio.replace(tzinfo=pytz.UTC)
+        
+        fin = datetime.now(pytz.UTC)  # Usar UTC para consistencia
+        duracion_minutos = max(1, int((fin - inicio).total_seconds() / 60))  # Mínimo 1 minuto
         tipo = 'COMIDA' if duracion_minutos >= 30 else 'DESCANSO'
         
         print(f"   Duración: {duracion_minutos} min → {tipo}")
@@ -150,12 +153,12 @@ def cerrar_descanso_usuario(usuario_id, descanso_activo):
         
         # Paso 2: Eliminar de descansos
         print(f"   🗑️ Eliminando descanso activo...")
-        delete_response = supabase_admin.table('descansos').delete().eq('id', descanso_activo['id']).select("*").execute()
+        delete_response = supabase_admin.table('descansos').delete().eq('id', descanso_activo['id']).execute()
         
-        if delete_response.error or not delete_response.data:
-            print(f"   ❌ ERROR: Falló eliminación de descanso activo: {delete_response.error or 'sin data'}")
-        else:
+        if delete_response.data:
             print(f"   ✅ Descanso eliminado: {len(delete_response.data)} registros")
+        else:
+            print(f"   ⚠️ ADVERTENCIA: No se confirmó eliminación - Error: {delete_response.error if hasattr(delete_response, 'error') else 'Sin error'}")
 
         # Paso 3: Verificación final
         verify_response = supabase_admin.table('descansos').select("*").eq('usuario_id', usuario_id).execute()
@@ -188,54 +191,95 @@ def cerrar_descanso_usuario(usuario_id, descanso_activo):
 # def get_current_time():
 #     return datetime.now(tz)
 
- # Ruta principal - Lector de tarjetas
+# Ruta principal - Lector de tarjetas
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    mensaje, tipo_mensaje = None, None
-
+    # TEMPORALMENTE COMENTADO: Si hay admin logueado, redirigir a registros
+    # if 'admin_id' in session:
+    #     return redirect(url_for('registros'))
+    
+    mensaje = None
+    tipo_mensaje = None
+    
     if request.method == 'POST':
-        entrada = request.form.get('entrada','').strip()
+        entrada = request.form.get('entrada', '').strip()
+        
         if entrada:
+            print(f"🔍 Buscando usuario con entrada: '{entrada}'")
             try:
-                # 1) Buscar usuario
-                resp = supabase.table('usuarios').select('*')\
-                              .or_(f"tarjeta.eq.{entrada},codigo.eq.{entrada.upper()}")\
-                              .execute()
-                usuario = resp.data[0] if resp.data else None
-
+                # Buscar usuario por tarjeta
+                response = supabase.table('usuarios').select("*").eq('tarjeta', entrada).execute()
+                usuario = response.data[0] if response.data else None
+                print(f"🆔 Búsqueda por tarjeta: {len(response.data)} resultados")
+                
+                # Si no se encuentra por tarjeta, buscar por código
                 if not usuario:
-                    mensaje, tipo_mensaje = 'Usuario no encontrado', 'error'
-                else:
-                    # 2) Verificar descanso activo
-                    resp2 = supabase_admin.table('descansos')\
-                                   .select('*')\
-                                   .eq('usuario_id', usuario['id']).execute()
-                    descanso = resp2.data[0] if resp2.data else None
-
-                    if descanso:
-                        # 3) Cerrar descanso
-                        success, msg, _ = cerrar_descanso_usuario(usuario['id'], descanso)
-                        mensaje = f"{usuario['nombre']} - Salida registrada ({msg})"
-                        tipo_mensaje = 'salida' if success else 'error'
+                    response = supabase.table('usuarios').select("*").eq('codigo', entrada.upper()).execute()
+                    usuario = response.data[0] if response.data else None
+                    print(f"🔤 Búsqueda por código: {len(response.data)} resultados")
+                
+                if usuario:
+                    print(f"👤 Usuario encontrado: {usuario['nombre']} (ID: {usuario['id']})")
+                    
+                    # Verificar si tiene descanso activo
+                    response = supabase.table('descansos').select("*").eq('usuario_id', usuario['id']).execute()
+                    descanso_activo = response.data[0] if response.data else None
+                    
+                    print(f"🔍 Descansos encontrados: {len(response.data)}")
+                    if descanso_activo:
+                        print(f"⏰ Descanso activo encontrado: ID {descanso_activo['id']}, Inicio: {descanso_activo['inicio']}")
+                    
+                    if descanso_activo:
+                        print(f"🚪 PROCESANDO SALIDA DE DESCANSO")
+                        print(f"   Usuario: {usuario['nombre']} (ID: {usuario['id']})")
+                        print(f"   Descanso ID: {descanso_activo['id']}")
+                        
+                        # Usar función helper para cerrar descanso
+                        success, resultado_msg, detalle = cerrar_descanso_usuario(usuario['id'], descanso_activo)
+                        
+                        if success:
+                            mensaje = f"{usuario['nombre']} - Salida registrada ({resultado_msg})"
+                            tipo_mensaje = "salida"
+                            print(f"🎉 SALIDA PROCESADA EXITOSAMENTE: {resultado_msg}")
+                        else:
+                            mensaje = f"Error al registrar salida de {usuario['nombre']}: {resultado_msg}"
+                            tipo_mensaje = "error"
+                            print(f"❌ FALLO EN SALIDA: {resultado_msg}")
+                            print(f"   Detalles: {detalle}")
+                            
                     else:
-                        # 4) Abrir descanso
-                        supabase_admin.table('descansos').insert({
-                            'usuario_id': usuario['id'],
-                            'inicio': get_current_time().isoformat(),
-                            'tipo': 'Pendiente'
-                        }).execute()
-                        mensaje, tipo_mensaje = f"{usuario['nombre']} - Entrada registrada", 'entrada'
+                        # Registrar entrada a descanso
+                        try:
+                            insert_response = supabase_admin.table('descansos').insert({
+                                'usuario_id': usuario['id'],
+                                'inicio': datetime.now(pytz.UTC).isoformat(),
+                                'tipo': 'Pendiente'
+                            }).execute()
+                            
+                            print(f"✅ Entrada registrada: {insert_response.data}")
+                            mensaje = f"{usuario['nombre']} - Entrada a descanso registrada"
+                            tipo_mensaje = "entrada"
+                            
+                        except Exception as e:
+                            print(f"❌ Error registrando entrada: {e}")
+                            mensaje = f"Error al registrar entrada: {str(e)}"
+                            tipo_mensaje = "error"
+                else:
+                    mensaje = "Usuario no encontrado"
+                    tipo_mensaje = "error"
+                    
             except Exception as e:
-                mensaje, tipo_mensaje = f"Error interno: {e}", 'error'
-
+                mensaje = f"Error al procesar: {str(e)}"
+                tipo_mensaje = "error"
+    
     # Obtener usuarios en descanso con información de usuario
     usuarios_en_descanso = []
     try:
         print(f"\n🔍 === OBTENIENDO USUARIOS EN DESCANSO ===")
         
         # Primero obtener todos los descansos activos
-        print(f"📊 Consultando tabla 'descansos' con cliente admin...")
-        response = supabase_admin.table('descansos').select("*").execute()
+        print(f"📊 Consultando tabla 'descansos'...")
+        response = supabase.table('descansos').select("*").execute()
         descansos_activos = response.data
         
         print(f"📊 Descansos activos encontrados: {len(descansos_activos)}")
@@ -268,27 +312,36 @@ def index():
                     # Calcular tiempo transcurrido
                     try:
                         inicio = datetime.fromisoformat(d['inicio'].replace('Z', '+00:00'))
-                        ahora = get_current_time()
+                        if inicio.tzinfo is None:
+                            inicio = inicio.replace(tzinfo=pytz.UTC)
+                        
+                        ahora = datetime.now(pytz.UTC)  # Usar UTC para consistencia
                         tiempo_transcurrido = int((ahora - inicio).total_seconds() / 60)
                         
                         print(f"   ⏰ Tiempo transcurrido: {tiempo_transcurrido} minutos")
-                        print(f"      Inicio: {inicio.strftime('%H:%M:%S')}")
-                        print(f"      Ahora: {ahora.strftime('%H:%M:%S')}")
+                        print(f"      Inicio: {inicio.strftime('%H:%M:%S UTC')}")
+                        print(f"      Ahora: {ahora.strftime('%H:%M:%S UTC')}")
                         
-                        # Determinar tiempo máximo y tipo según el tiempo transcurrido
+                        # Determinar tiempo máximo según el tiempo transcurrido
                         tiempo_maximo = 40 if tiempo_transcurrido >= 20 else 20
                         tiempo_restante = max(0, tiempo_maximo - tiempo_transcurrido)
-                        tipo = 'Comida' if tiempo_transcurrido >= 20 else 'Descanso'
-
-                        print(f"   📋 Tipo: {tipo}")
+                        tipo_probable = 'COMIDA' if tiempo_transcurrido >= 20 else 'DESCANSO'
+                        
+                        # Asegurar que los valores sean números válidos
+                        tiempo_transcurrido = max(0, tiempo_transcurrido)
+                        tiempo_restante = max(0, tiempo_restante)
+                        
+                        print(f"   📋 Tipo probable: {tipo_probable}")
                         print(f"   ⏳ Tiempo restante: {tiempo_restante} min")
-
+                        
                         usuario_descanso = {
-                            'nombre': usuario_info['nombre'],  # ...existing code...
-                            'codigo': usuario_info['codigo'],  # ...existing code...
-                            'inicio': inicio,                  # datetime para formato
-                            'tipo': tipo,                      # etiqueta coincidente con template
-                            'tiempo_restante': tiempo_restante # minutos restantes
+                            'nombre': usuario_info['nombre'],
+                            'codigo': usuario_info['codigo'],
+                            'tiempo_transcurrido': tiempo_transcurrido,
+                            'tiempo_restante': tiempo_restante,
+                            'tipo_probable': tipo_probable,
+                            'inicio_formateado': inicio.astimezone(tz).strftime('%H:%M'),  # Para mostrar
+                            'inicio_iso': inicio.isoformat()  # Para cálculos de JavaScript
                         }
                         
                         usuarios_en_descanso.append(usuario_descanso)
@@ -325,7 +378,7 @@ def index():
     
     return render_template('index.html',
                          descansos=usuarios_en_descanso,
-                         hora_actual=get_current_time().strftime('%Y-%m-%d %H:%M:%S'),
+                         hora_actual=datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S'),
                          mensaje=mensaje,
                          tipo_mensaje=tipo_mensaje,
                          conexion_status=conexion_supabase_status)
@@ -337,21 +390,45 @@ def login():
         usuario = request.form.get('usuario', '').strip()
         clave = request.form.get('clave', '').strip()
         
+        print(f"🔐 Intento de login:")
+        print(f"   Usuario recibido: '{usuario}'")
+        print(f"   Clave recibida: '{clave}'")
+        
         try:
-            # Buscar administrador
-            response = supabase.table('administradores').select("*").eq('usuario', usuario).eq('activo', True).execute()
-            admin = response.data[0] if response.data else None
+            # Buscar administrador usando cliente administrativo
+            print(f"   Buscando administrador en BD...")
+            response = supabase_admin.table('administradores').select("*").eq('usuario', usuario).eq('activo', True).execute()
             
-            if admin and admin['clave'] == clave:  # En producción usar bcrypt
-                session.permanent = True
-                session['admin_id'] = admin['id']
-                session['admin_nombre'] = admin['nombre']
-                session['last_activity'] = datetime.now().isoformat()
-                return redirect(url_for('registros'))
+            print(f"   Respuesta BD: {len(response.data) if response.data else 0} resultados")
+            
+            if response.data:
+                admin = response.data[0]
+                print(f"   Admin encontrado:")
+                print(f"      ID: {admin['id']}")
+                print(f"      Usuario: '{admin['usuario']}'")
+                print(f"      Nombre: '{admin['nombre']}'")
+                print(f"      Clave BD: '{admin['clave']}'")
+                print(f"      Activo: {admin['activo']}")
+                
+                if admin['clave'] == clave:
+                    print(f"   ✅ Credenciales válidas - Iniciando sesión")
+                    session.permanent = True
+                    session['admin_id'] = admin['id']
+                    session['admin_nombre'] = admin['nombre']
+                    session['last_activity'] = datetime.now().isoformat()
+                    return redirect(url_for('registros'))
+                else:
+                    print(f"   ❌ Clave incorrecta: '{clave}' != '{admin['clave']}'")
+                    return render_template('login.html', error=f'Credenciales inválidas. Usuario: {usuario}, Clave esperada: {admin["clave"]}')
             else:
-                return render_template('login.html', error='Credenciales inválidas')
+                print(f"   ❌ Usuario no encontrado o inactivo")
+                return render_template('login.html', error=f'Usuario "{usuario}" no encontrado o inactivo')
+                
         except Exception as e:
-            return render_template('login.html', error='Error al verificar credenciales')
+            print(f"   ❌ Error en login: {e}")
+            import traceback
+            print(f"   Stack trace: {traceback.format_exc()}")
+            return render_template('login.html', error=f'Error al verificar credenciales: {str(e)}')
     
     return render_template('login.html')
 
@@ -365,6 +442,9 @@ def logout():
 @app.route('/base_datos', methods=['GET', 'POST'])
 @login_required
 def base_datos():
+    mensaje = None
+    tipo_mensaje = None
+    
     if request.method == 'POST':
         action = request.form.get('action')
         
@@ -376,37 +456,99 @@ def base_datos():
                 turno = request.form.get('turno', '').strip()
                 codigo = request.form.get('codigo', '').strip().upper()
                 
+                print(f"🔍 Creando usuario - Action: {action}")
+                print(f"   Nombre: '{nombre}', Tarjeta: '{tarjeta}', Turno: '{turno}', Código: '{codigo}'")
+                
                 if nombre and tarjeta and turno and codigo:
-                    supabase_admin.table('usuarios').insert({
-                        'nombre': nombre,
-                        'tarjeta': tarjeta,
-                        'turno': turno,
-                        'codigo': codigo
-                    }).execute()
+                    # Verificar si el código ya existe
+                    existing = supabase.table('usuarios').select("id").eq('codigo', codigo).execute()
+                    if existing.data:
+                        mensaje = f"Ya existe un usuario con el código {codigo}"
+                        tipo_mensaje = "error"
+                    else:
+                        # DEBUG: Imprimir valores exactos antes de crear
+                        print(f"🔍 VALORES EXACTOS A INSERTAR:")
+                        print(f"   nombre: '{nombre}' (tipo: {type(nombre)})")
+                        print(f"   tarjeta: '{tarjeta}' (tipo: {type(tarjeta)})")
+                        print(f"   turno: '{turno}' (tipo: {type(turno)})")
+                        print(f"   codigo: '{codigo}' (tipo: {type(codigo)})")
+                        
+                        # Crear usuario
+                        try:
+                            result = supabase_admin.table('usuarios').insert({
+                                'nombre': nombre,
+                                'tarjeta': tarjeta,
+                                'turno': turno,
+                                'codigo': codigo
+                            }).execute()
+                            
+                            print(f"✅ Usuario creado exitosamente: {result}")
+                            mensaje = f"Usuario {nombre} creado exitosamente"
+                            tipo_mensaje = "success"
+                            
+                        except Exception as create_error:
+                            print(f"❌ ERROR ESPECÍFICO AL CREAR: {create_error}")
+                            if "usuarios_turno_check" in str(create_error):
+                                # Error de restricción de turno - la BD debería estar corregida
+                                mensaje = f"Error de restricción de turno: '{turno}' no está permitido. Valores válidos: 'Full', 'Part Time', 'Llamado'"
+                                print("⚠️ Error de restricción - revisar que la BD esté actualizada")
+                            else:
+                                mensaje = f"Error al crear usuario: {str(create_error)}"
+                            tipo_mensaje = "error"
+                else:
+                    mensaje = "Todos los campos son obligatorios"
+                    tipo_mensaje = "error"
+                    print(f"❌ Campos faltantes - Nombre: {bool(nombre)}, Tarjeta: {bool(tarjeta)}, Turno: {bool(turno)}, Código: {bool(codigo)}")
                     
             elif action == 'delete':
                 # Eliminar usuario
                 user_id = request.form.get('user_id')
+                print(f"🗑️ Eliminando usuario ID: {user_id}")
+                
                 if user_id:
-                    supabase_admin.table('usuarios').delete().eq('id', user_id).execute()
+                    # Obtener nombre del usuario antes de eliminar
+                    user_info = supabase.table('usuarios').select("nombre").eq('id', user_id).execute()
+                    nombre_usuario = user_info.data[0]['nombre'] if user_info.data else "Usuario"
+                    
+                    # Eliminar usuario
+                    result = supabase_admin.table('usuarios').delete().eq('id', user_id).execute()
+                    print(f"✅ Usuario eliminado: {result}")
+                    mensaje = f"Usuario {nombre_usuario} eliminado exitosamente"
+                    tipo_mensaje = "success"
+                else:
+                    mensaje = "ID de usuario no válido"
+                    tipo_mensaje = "error"
+            else:
+                mensaje = "Acción no válida"
+                tipo_mensaje = "error"
+                print(f"❌ Acción no reconocida: '{action}'")
                     
         except Exception as e:
-            print(f"Error en base_datos: {e}")
+            print(f"❌ Error en base_datos: {e}")
+            mensaje = f"Error: {str(e)}"
+            tipo_mensaje = "error"
     
     # Obtener todos los usuarios
     try:
         response = supabase.table('usuarios').select("*").order('nombre').execute()
         usuarios = response.data
+        print(f"📊 Usuarios obtenidos: {len(usuarios)}")
     except Exception as e:
         usuarios = []
-        print(f"Error al obtener usuarios: {e}")
+        print(f"❌ Error al obtener usuarios: {e}")
+        if not mensaje:  # Solo mostrar este error si no hay otro mensaje
+            mensaje = "Error al cargar la lista de usuarios"
+            tipo_mensaje = "error"
     
-    return render_template('base_datos.html', usuarios=usuarios)
+    return render_template('base_datos.html', usuarios=usuarios, mensaje=mensaje, tipo_mensaje=tipo_mensaje)
 
 # Editar usuario
 @app.route('/editar_usuario/<user_id>', methods=['GET', 'POST'])
 @login_required
 def editar_usuario(user_id):
+    mensaje = None
+    tipo_mensaje = None
+    
     if request.method == 'POST':
         try:
             # Actualizar usuario
@@ -415,17 +557,45 @@ def editar_usuario(user_id):
             turno = request.form.get('turno', '').strip()
             codigo = request.form.get('codigo', '').strip().upper()
             
+            print(f"🔄 Actualizando usuario ID: {user_id}")
+            print(f"   Nuevos valores - Nombre: '{nombre}', Tarjeta: '{tarjeta}', Turno: '{turno}', Código: '{codigo}'")
+            
             if nombre and tarjeta and turno and codigo:
-                supabase_admin.table('usuarios').update({
-                    'nombre': nombre,
-                    'tarjeta': tarjeta,
-                    'turno': turno,
-                    'codigo': codigo
-                }).eq('id', user_id).execute()
+                try:
+                    result = supabase_admin.table('usuarios').update({
+                        'nombre': nombre,
+                        'tarjeta': tarjeta,
+                        'turno': turno,
+                        'codigo': codigo
+                    }).eq('id', user_id).execute()
+                    
+                    print(f"✅ Usuario actualizado exitosamente: {result}")
+                    return redirect(url_for('base_datos'))
+                    
+                except Exception as update_error:
+                    print(f"❌ ERROR AL ACTUALIZAR: {update_error}")
+                    if "usuarios_turno_check" in str(update_error):
+                        mensaje = f"""
+                        ERROR DE RESTRICCIÓN DE BASE DE DATOS
+                        
+                        El turno '{turno}' no está permitido por la restricción de la base de datos.
+                        
+                        SOLUCIÓN: Ejecuta estos comandos en Supabase SQL Editor:
+                        
+                        ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_turno_check;
+                        ALTER TABLE usuarios ADD CONSTRAINT usuarios_turno_check CHECK (turno IN ('Full', 'Part Time', 'Llamado'));
+                        """
+                    else:
+                        mensaje = f"Error al actualizar usuario: {str(update_error)}"
+                    tipo_mensaje = "error"
+            else:
+                mensaje = "Todos los campos son obligatorios"
+                tipo_mensaje = "error"
                 
-                return redirect(url_for('base_datos'))
         except Exception as e:
-            print(f"Error al actualizar usuario: {e}")
+            print(f"Error general al actualizar usuario: {e}")
+            mensaje = f"Error: {str(e)}"
+            tipo_mensaje = "error"
     
     # Obtener usuario
     try:
@@ -435,7 +605,7 @@ def editar_usuario(user_id):
         if not usuario:
             return redirect(url_for('base_datos'))
             
-        return render_template('editar_usuario.html', usuario=usuario)
+        return render_template('editar_usuario.html', usuario=usuario, mensaje=mensaje, tipo_mensaje=tipo_mensaje)
     except Exception as e:
         print(f"Error al obtener usuario: {e}")
         return redirect(url_for('base_datos'))
@@ -478,17 +648,40 @@ def registros():
         response_usuarios = supabase.table('usuarios').select("id, nombre").order('nombre').execute()
         usuarios = response_usuarios.data
         
+        # Calcular estadísticas básicas
+        total_registros = len(registros)
+        total_descansos = len([r for r in registros if r['tipo'] == 'DESCANSO'])
+        total_comidas = len([r for r in registros if r['tipo'] == 'COMIDA'])
+        tiempo_total = sum(r['duracion_minutos'] for r in registros)
+        
+        estadisticas = {
+            'total_registros': total_registros,
+            'total_descansos': total_descansos,
+            'total_comidas': total_comidas,
+            'tiempo_total': tiempo_total,
+            'promedio_duracion': round(tiempo_total / total_registros, 1) if total_registros > 0 else 0
+        }
+        
     except Exception as e:
         print(f"Error al obtener registros: {e}")
         registros = []
         usuarios = []
+        estadisticas = {
+            'total_registros': 0,
+            'total_descansos': 0,
+            'total_comidas': 0,
+            'tiempo_total': 0,
+            'promedio_duracion': 0
+        }
     
     return render_template('registros.html',
                          registros=registros,
                          usuarios=usuarios,
                          fecha_inicio=fecha_inicio,
                          fecha_fin=fecha_fin,
-                         usuario_id=usuario_id)
+                         usuario_id=usuario_id,
+                         estadisticas=estadisticas,
+                         filtros={})
 
 # Reportes y estadísticas
 @app.route('/reportes')
@@ -512,7 +705,57 @@ def reportes():
             .execute()
         registros = response.data
         
-        # Calcular estadísticas
+        # === ESTADÍSTICAS DE HOY ===
+        fecha_hoy = date.today().isoformat()
+        registros_hoy = [r for r in registros if r['fecha'] == fecha_hoy]
+        
+        if registros_hoy:
+            total_descansos_hoy = len([r for r in registros_hoy if r['tipo'] == 'DESCANSO'])
+            total_comidas_hoy = len([r for r in registros_hoy if r['tipo'] == 'COMIDA'])
+            total_minutos_hoy = sum(r['duracion_minutos'] for r in registros_hoy)
+            minutos_descanso_hoy = sum(r['duracion_minutos'] for r in registros_hoy if r['tipo'] == 'DESCANSO')
+            minutos_comida_hoy = sum(r['duracion_minutos'] for r in registros_hoy if r['tipo'] == 'COMIDA')
+            
+            stats_hoy = {
+                'total_descansos': total_descansos_hoy + total_comidas_hoy,
+                'total_minutos': total_minutos_hoy,
+                'promedio_minutos': round(total_minutos_hoy / len(registros_hoy), 1) if registros_hoy else 0,
+                'total_comidas': total_comidas_hoy,
+                'total_descansos_cortos': total_descansos_hoy,
+                'minutos_comida': minutos_comida_hoy,
+                'minutos_descanso': minutos_descanso_hoy
+            }
+        else:
+            stats_hoy = {
+                'total_descansos': 0,
+                'total_minutos': 0,
+                'promedio_minutos': 0,
+                'total_comidas': 0,
+                'total_descansos_cortos': 0,
+                'minutos_comida': 0,
+                'minutos_descanso': 0
+            }
+        
+        # === ESTADÍSTICAS DE LA SEMANA ===
+        fecha_inicio_semana = (date.today() - timedelta(days=7)).isoformat()
+        registros_semana = [r for r in registros if r['fecha'] >= fecha_inicio_semana]
+        
+        if registros_semana:
+            total_minutos_semana = sum(r['duracion_minutos'] for r in registros_semana)
+            
+            stats_semana = {
+                'total_descansos': len(registros_semana),
+                'total_minutos': total_minutos_semana,
+                'promedio_minutos': round(total_minutos_semana / len(registros_semana), 1) if registros_semana else 0
+            }
+        else:
+            stats_semana = {
+                'total_descansos': 0,
+                'total_minutos': 0,
+                'promedio_minutos': 0
+            }
+        
+        # Calcular estadísticas generales (código existente)
         stats_por_usuario = {}
         stats_por_dia = {}
         total_descansos = 0
@@ -533,7 +776,8 @@ def reportes():
                     'comidas': 0,
                     'tiempo_descansos': 0,
                     'tiempo_comidas': 0,
-                    'tiempo_total': 0
+                    'tiempo_total': 0,
+                    'exceso_total': 0  # Para calcular usuarios que más se exceden
                 }
             
             # Stats por día
@@ -543,6 +787,13 @@ def reportes():
                     'comidas': 0,
                     'usuarios_unicos': set()
                 }
+            
+            # Calcular exceso
+            exceso = 0
+            if tipo == 'DESCANSO' and duracion > 20:
+                exceso = duracion - 20
+            elif tipo == 'COMIDA' and duracion > 40:
+                exceso = duracion - 40
             
             # Actualizar contadores
             if tipo == 'DESCANSO':
@@ -559,6 +810,7 @@ def reportes():
                 tiempo_total_comidas += duracion
             
             stats_por_usuario[usuario_nombre]['tiempo_total'] += duracion
+            stats_por_usuario[usuario_nombre]['exceso_total'] += exceso
             stats_por_dia[fecha]['usuarios_unicos'].add(usuario_nombre)
         
         # Convertir sets a conteos
@@ -567,8 +819,21 @@ def reportes():
         
         # Ordenar usuarios por tiempo total (top 10)
         top_usuarios = sorted(stats_por_usuario.items(), 
-                            key=lambda x: x[1]['tiempo_total'], 
+                            key=lambda x: x[1]['exceso_total'], 
                             reverse=True)[:10]
+        
+        # Formatear top usuarios para el template
+        top_usuarios_formateado = []
+        for i, (nombre, stats) in enumerate(top_usuarios):
+            if stats['exceso_total'] > 0:  # Solo mostrar usuarios con exceso
+                top_usuarios_formateado.append({
+                    'posicion': i + 1,
+                    'nombre': nombre,
+                    'descansos': stats['descansos'],
+                    'comidas': stats['comidas'],
+                    'tiempo_total': stats['tiempo_total'],
+                    'exceso_total': stats['exceso_total']
+                })
         
         # Preparar datos para gráficos
         fechas_ordenadas = sorted(stats_por_dia.keys())
@@ -590,13 +855,31 @@ def reportes():
         
     except Exception as e:
         print(f"Error al generar reportes: {e}")
+        # Valores por defecto en caso de error
+        stats_hoy = {
+            'total_descansos': 0,
+            'total_minutos': 0,
+            'promedio_minutos': 0,
+            'total_comidas': 0,
+            'total_descansos_cortos': 0,
+            'minutos_comida': 0,
+            'minutos_descanso': 0
+        }
+        stats_semana = {
+            'total_descansos': 0,
+            'total_minutos': 0,
+            'promedio_minutos': 0
+        }
         estadisticas = {}
-        top_usuarios = []
+        top_usuarios_formateado = []
         datos_grafico = {'fechas': [], 'descansos': [], 'comidas': []}
     
     return render_template('reportes.html',
                          estadisticas=estadisticas,
-                         top_usuarios=top_usuarios,
+                         top_usuarios=top_usuarios_formateado,
+                         stats_hoy=stats_hoy,
+                         stats_semana=stats_semana,
+                         fecha_hoy=date.today().strftime('%d/%m/%Y'),
                          datos_grafico=datos_grafico,
                          fecha_inicio=fecha_inicio,
                          fecha_fin=fecha_fin)
@@ -683,7 +966,7 @@ def ver_descansos():
         descansos_response = supabase.table('descansos').select("*").execute()
         
         html = "<h1>🔍 Diagnóstico de Usuarios en Descanso</h1>"
-        html += f"<p><strong>Fecha/Hora:</strong> {get_current_time().strftime('%Y-%m-%d %H:%M:%S')}</p>"
+        html += f"<p><strong>Fecha/Hora:</strong> {datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')}</p>"
         html += f"<p><strong>Descansos activos en BD:</strong> {len(descansos_response.data)}</p>"
         
         if descansos_response.data:
@@ -834,13 +1117,33 @@ def debug_descansos():
             })
         else:
             resultado.append("\n❌ No se pueden cruzar datos - faltan descansos o usuarios")
-            return jsonify({'diagnostico': resultado, 'error': 'Datos insuficientes'})
+            return jsonify({
+                'diagnostico': resultado, 
+                'error': 'Datos insuficientes',
+                'datos': {
+                    'descansos_activos': len(descansos_response.data) if descansos_response.data else 0,
+                    'usuarios_totales': len(usuarios_response.data) if usuarios_response.data else 0,
+                    'usuarios_en_descanso': 0,
+                    'descansos_raw': descansos_response.data if descansos_response.data else [],
+                    'usuarios_procesados': []
+                }
+            })
             
     except Exception as e:
         resultado.append(f"\n❌ ERROR: {str(e)}")
         import traceback
         resultado.append(f"Stack trace: {traceback.format_exc()}")
-        return jsonify({'diagnostico': resultado, 'error': str(e)})
+        return jsonify({
+            'diagnostico': resultado, 
+            'error': str(e),
+            'datos': {
+                'descansos_activos': 0,
+                'usuarios_totales': 0,
+                'usuarios_en_descanso': 0,
+                'descansos_raw': [],
+                'usuarios_procesados': []
+            }
+        })
 
 # Ruta para simular flujo completo
 @app.route('/test_flujo_completo/<codigo>')

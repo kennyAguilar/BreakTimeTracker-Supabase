@@ -1,16 +1,82 @@
-# Crear archivo .gitignore
-cat > .gitignore << 'EOL'
+# Python
 *.pyc
 __pycache__/
+*.pyo
+*.pyd
+.Python
+env/
 venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Environment variables
 .env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.tmp
+
+# Logs
 *.log
-instance/
+logs/
+
+# Testing
 .pytest_cache/
 .coverage
 htmlcov/
+.tox/
+.cache
+
+# Build
 dist/
 build/
 *.egg-info/
-EOL
+*.egg
+
+# Temporary files
+temp/
+tmp/
+*.temp
+*.bak
+
+# Test and migration scripts (cleanup)
+test_*.py
+*_test.py
+migrate_*.py
+fix_*.py
+check_*.py
+diagnostic_*.py
+update_*.py
+verify_*.py
+analyze_*.py
+prueba_*.py
+crear_*.py
+limpiar_*.py
+verificar_*.py
+
+# Documentation files (cleanup)
+CORRECCION_*.md
+ESTADO_*.md
+INSTRUCCIONES_*.md
+PROBLEMAS_*.md
+RESUMEN_*.md
+*.sql
+
+# Batch files
+*.bat

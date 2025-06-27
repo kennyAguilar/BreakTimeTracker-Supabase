@@ -19,29 +19,41 @@
     }
 
     // Actualizar los tiempos restantes cada minuto
-    const tiempoElements = document.querySelectorAll('[data-inicio][data-tipo]');
+    const tiempoElements = document.querySelectorAll('[data-inicio-iso][data-tipo]');
     
     function actualizarTiempos() {
       const ahora = new Date();
       
       tiempoElements.forEach(el => {
-        const inicioStr = el.dataset.inicio;
+        const inicioStr = el.dataset.inicioIso;
         const tipo = el.dataset.tipo;
+        
+        if (!inicioStr) {
+          console.error('No se encontró data-inicio-iso para el elemento', el);
+          return;
+        }
+        
         const inicio = new Date(inicioStr);
+        
+        if (isNaN(inicio.getTime())) {
+          console.error('Fecha inválida:', inicioStr);
+          el.innerText = 'Error';
+          return;
+        }
 
         const transcurridoMinutos = Math.floor((ahora - inicio) / 60000);
-        const limite = tipo === 'Comida' ? 40 : 20;
+        const limite = tipo === 'COMIDA' ? 40 : 20;
         const restante = limite - transcurridoMinutos;
 
         if (restante > 0) {
           el.innerText = `${restante} min`;
-          el.className = 'px-2 sm:px-4 py-2 text-green-400';
+          el.className = el.className.replace(/text-(red|yellow|green)-400/, 'text-green-400');
         } else if (restante === 0) {
           el.innerText = '0 min';
-          el.className = 'px-2 sm:px-4 py-2 text-yellow-400';
+          el.className = el.className.replace(/text-(red|yellow|green)-400/, 'text-yellow-400');
         } else {
           el.innerText = `+${Math.abs(restante)} min`;
-          el.className = 'px-2 sm:px-4 py-2 text-red-400';
+          el.className = el.className.replace(/text-(red|yellow|green)-400/, 'text-red-400');
         }
       });
     }    // Actualizar inmediatamente y luego cada minuto
@@ -131,14 +143,18 @@
             {% for descanso in descansos %}
             <tr class="text-gray-100 border-b border-gray-700">
               <td class="px-2 py-2">{{ descanso.nombre }} ({{ descanso.codigo }})</td>
-              <td class="px-2 py-2">{{ descanso.inicio.strftime('%H:%M') }}</td>
+              <td class="px-2 py-2">{{ descanso.inicio_formateado }}</td>
               <td class="px-2 py-2">
-                <span class="{% if descanso.tipo == 'Comida' %}bg-orange-600{% else %}bg-blue-600{% endif %} px-2 py-1 rounded text-xs">
-                  {{ descanso.tipo }}
+                <span class="{% if descanso.tipo_probable == 'COMIDA' %}bg-orange-600{% else %}bg-blue-600{% endif %} px-2 py-1 rounded text-xs">
+                  {{ descanso.tipo_probable }}
                 </span>
               </td>
-              <td class="px-2 py-2" data-inicio="{{ descanso.inicio.isoformat() }}" data-tipo="{{ descanso.tipo }}">
-                {{ descanso.tiempo_restante }} min
+              <td class="px-2 py-2" data-inicio-iso="{{ descanso.inicio_iso }}" data-tipo="{{ descanso.tipo_probable }}">
+                {% if descanso.tiempo_restante is number and descanso.tiempo_restante >= 0 %}
+                  {{ descanso.tiempo_restante }} min
+                {% else %}
+                  0 min
+                {% endif %}
               </td>
             </tr>
             {% endfor %}
@@ -155,20 +171,24 @@
               <h3 class="font-bold text-sm">{{ descanso.nombre }}</h3>
               <p class="text-xs text-gray-300">({{ descanso.codigo }})</p>
             </div>
-            <span class="{% if descanso.tipo == 'Comida' %}bg-orange-600{% else %}bg-blue-600{% endif %} px-2 py-1 rounded text-xs">
-              {{ descanso.tipo }}
+            <span class="{% if descanso.tipo_probable == 'COMIDA' %}bg-orange-600{% else %}bg-blue-600{% endif %} px-2 py-1 rounded text-xs">
+              {{ descanso.tipo_probable }}
             </span>
           </div>
           
           <div class="grid grid-cols-2 gap-2 text-sm">
             <div>
               <span class="text-gray-400">Inicio:</span>
-              <span class="text-white">{{ descanso.inicio.strftime('%H:%M') }}</span>
+              <span class="text-white">{{ descanso.inicio_formateado }}</span>
             </div>
             <div>
               <span class="text-gray-400">Restante:</span>
-              <span class="text-white" data-inicio="{{ descanso.inicio.isoformat() }}" data-tipo="{{ descanso.tipo }}">
-                {{ descanso.tiempo_restante }} min
+              <span class="text-white" data-inicio-iso="{{ descanso.inicio_iso }}" data-tipo="{{ descanso.tipo_probable }}">
+                {% if descanso.tiempo_restante is number and descanso.tiempo_restante >= 0 %}
+                  {{ descanso.tiempo_restante }} min
+                {% else %}
+                  0 min
+                {% endif %}
               </span>
             </div>
           </div>
