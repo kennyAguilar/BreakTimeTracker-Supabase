@@ -50,12 +50,27 @@ try:
         print("SUPABASE_SERVICE_KEY=tu-service-key")
         exit(1)
     
-    # Intentar crear clientes
+    # Intentar crear clientes con configuración específica para producción
     print("🔗 Creando cliente público...")
-    supabase: Client = create_client(supabase_url, supabase_anon_key)
+    try:
+        # Configuración específica para evitar problemas de proxy
+        from supabase import ClientOptions
+        options = ClientOptions()
+        supabase: Client = create_client(supabase_url, supabase_anon_key, options)
+    except Exception as client_error:
+        print(f"⚠️ Error con opciones específicas, intentando configuración básica: {client_error}")
+        # Fallback a configuración básica
+        supabase: Client = create_client(supabase_url, supabase_anon_key)
     
     print("🔗 Creando cliente administrativo...")
-    supabase_admin: Client = create_client(supabase_url, supabase_service_key)
+    try:
+        from supabase import ClientOptions
+        options_admin = ClientOptions()
+        supabase_admin: Client = create_client(supabase_url, supabase_service_key, options_admin)
+    except Exception as admin_error:
+        print(f"⚠️ Error con opciones específicas para admin, intentando configuración básica: {admin_error}")
+        # Fallback a configuración básica
+        supabase_admin: Client = create_client(supabase_url, supabase_service_key)
     
     # Probar conexión básica
     print("🧪 Probando conexión...")
