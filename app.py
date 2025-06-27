@@ -794,12 +794,20 @@ def reportes():
         tiempo_total_comidas = 0
         
         # Procesar registros con manejo de errores
+        usuarios_info = {}  # Para almacenar info de usuarios
+        
         for r in registros:
             try:
-                usuario_nombre = r['usuarios']['nombre'] if r.get('usuarios') and r['usuarios'].get('nombre') else 'Usuario Desconocido'
+                usuario_data = r.get('usuarios', {})
+                usuario_nombre = usuario_data.get('nombre', 'Usuario Desconocido') if usuario_data else 'Usuario Desconocido'
+                usuario_codigo = usuario_data.get('codigo', 'N/A') if usuario_data else 'N/A'
                 fecha = r.get('fecha', date.today().isoformat())
                 tipo = r.get('tipo', 'DESCANSO')
                 duracion = r.get('duracion_minutos', 0)
+                
+                # Almacenar info del usuario
+                if usuario_nombre != 'Usuario Desconocido':
+                    usuarios_info[usuario_nombre] = usuario_codigo
                 
                 # Validar datos
                 if not usuario_nombre or usuario_nombre == 'Usuario Desconocido':
@@ -871,13 +879,21 @@ def reportes():
         top_usuarios_formateado = []
         for i, (nombre, stats) in enumerate(top_usuarios):
             if stats['exceso_total'] > 0:  # Solo mostrar usuarios con exceso
+                codigo_usuario = usuarios_info.get(nombre, nombre[:3].upper())
                 top_usuarios_formateado.append({
                     'posicion': i + 1,
                     'nombre': nombre,
-                    'descansos': stats['descansos'],
-                    'comidas': stats['comidas'],
+                    'codigo': codigo_usuario,
+                    'total_descansos': stats['descansos'] + stats['comidas'],
+                    'total_comidas': stats['comidas'],
+                    'total_descansos_cortos': stats['descansos'],
+                    'total_minutos': stats['tiempo_total'],  # ← Esta es la clave que falta
                     'tiempo_total': stats['tiempo_total'],
-                    'exceso_total': stats['exceso_total']
+                    'exceso_total': stats['exceso_total'],
+                    'exceso_comidas': max(0, stats['tiempo_comidas'] - (stats['comidas'] * 40)) if stats['comidas'] > 0 else 0,
+                    'comidas_con_exceso': len([c for c in range(stats['comidas']) if (stats['tiempo_comidas'] / stats['comidas']) > 40]) if stats['comidas'] > 0 else 0,
+                    'exceso_descansos': max(0, stats['tiempo_descansos'] - (stats['descansos'] * 20)) if stats['descansos'] > 0 else 0,
+                    'descansos_con_exceso': len([d for d in range(stats['descansos']) if (stats['tiempo_descansos'] / stats['descansos']) > 20]) if stats['descansos'] > 0 else 0
                 })
         
         # Preparar datos para gráficos

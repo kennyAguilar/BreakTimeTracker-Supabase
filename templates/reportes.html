@@ -112,20 +112,20 @@
                 <tr>
                     <td><strong>{{ loop.index }}</strong></td>
                     <td><strong>{{ usuario.nombre }}</strong></td>
-                    <td><span class="badge badge-custom badge-codigo">{{ usuario.codigo }}</span></td>
+                    <td><span class="badge badge-custom badge-codigo">{{ usuario.codigo | default('N/A') }}</span></td>
                     <td>
-                        <span class="badge badge-custom badge-azul">{{ usuario.total_descansos }}</span>
+                        <span class="badge badge-custom badge-azul">{{ usuario.total_descansos | default(0) }}</span>
                         <small class="d-block mt-1 text-muted">
-                            🍽️{{ usuario.total_comidas }} ☕{{ usuario.total_descansos_cortos }}
+                            🍽️{{ usuario.total_comidas | default(0) }} ☕{{ usuario.total_descansos_cortos | default(0) }}
                         </small>
                     </td>
-                    <td><strong>{{ (usuario.total_minutos / 60) | round(1) }}h</strong></td>
+                    <td><strong>{{ ((usuario.total_minutos | default(0)) / 60) | round(1) }}h</strong></td>
                     
                     <!-- EXCESO COMIDAS -->
                     <td>
-                        {% if usuario.exceso_comidas > 0 %}
+                        {% if (usuario.exceso_comidas | default(0)) > 0 %}
                         <span class="badge badge-rojo">{{ usuario.exceso_comidas }} min</span>
-                        {% if usuario.comidas_con_exceso > 0 %}
+                        {% if (usuario.comidas_con_exceso | default(0)) > 0 %}
                         <small class="d-block mt-1 text-muted">{{ usuario.comidas_con_exceso }} comidas</small>
                         {% endif %}
                         {% else %}
@@ -135,9 +135,9 @@
                     
                     <!-- EXCESO DESCANSOS -->
                     <td>
-                        {% if usuario.exceso_descansos > 0 %}
+                        {% if (usuario.exceso_descansos | default(0)) > 0 %}
                         <span class="badge badge-amarillo">{{ usuario.exceso_descansos }} min</span>
-                        {% if usuario.descansos_con_exceso > 0 %}
+                        {% if (usuario.descansos_con_exceso | default(0)) > 0 %}
                         <small class="d-block mt-1 text-muted">{{ usuario.descansos_con_exceso }} descansos</small>
                         {% endif %}
                         {% else %}
@@ -147,8 +147,8 @@
                     
                     <!-- TOTAL EXCESO -->
                     <td>
-                        {% if usuario.total_exceso > 0 %}
-                        <span class="badge badge-exceso">{{ usuario.total_exceso }} min</span>
+                        {% if (usuario.exceso_total | default(0)) > 0 %}
+                        <span class="badge badge-exceso">{{ usuario.exceso_total }} min</span>
                         {% else %}
                         <span class="badge badge-normal">0 min</span>
                         {% endif %}
@@ -156,12 +156,13 @@
                     
                     <!-- ESTADO DETALLADO -->
                     <td>
-                        {% if usuario.exceso_comidas > 30 or usuario.exceso_descansos > 30 %}
+                        {% if (usuario.exceso_comidas | default(0)) > 30 or (usuario.exceso_descansos | default(0)) > 30 %}
                         <span class="badge badge-exceso">Alto Exceso</span>
-                        {% elif usuario.exceso_comidas > 0 and usuario.exceso_descansos > 0 %}
+                        {% elif (usuario.exceso_comidas | default(0)) > 0 and (usuario.exceso_descansos | default(0)) > 0 %}
                         <span class="badge badge-rojo">Ambos Tipos</span>
-                        {% elif usuario.exceso_comidas > 0 %}                        <span class="badge badge-amarillo">Solo Comidas</span>
-                        {% elif usuario.exceso_descansos > 0 %}
+                        {% elif (usuario.exceso_comidas | default(0)) > 0 %}
+                        <span class="badge badge-amarillo">Solo Comidas</span>
+                        {% elif (usuario.exceso_descansos | default(0)) > 0 %}
                         <span class="badge badge-amarillo">Solo Descansos</span>
                         {% else %}
                         <span class="badge badge-normal">Normal</span>
