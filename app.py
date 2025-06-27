@@ -1042,55 +1042,383 @@ def reportes_simple():
         print(f"📍 Stack trace: {traceback.format_exc()}")
         return render_template('error.html', error=f'Error en reportes: {str(e)}')
 
-# Exportar a CSV
+# Exportar a CSV - Versión mejorada
 @app.route('/exportar_csv')
 @login_required
 def exportar_csv():
     fecha_inicio = request.args.get('fecha_inicio', (date.today() - timedelta(days=30)).isoformat())
     fecha_fin = request.args.get('fecha_fin', date.today().isoformat())
+    tipo_reporte = request.args.get('tipo', 'completo')  # completo, resumen, estadisticas
+    formato = request.args.get('formato', 'csv')  # csv, excel
     
     try:
-        # Obtener registros
+        print(f"📊 Exportando {tipo_reporte} en formato {formato} para período: {fecha_inicio} a {fecha_fin}")
+        
+        if tipo_reporte == 'estadisticas':
+            return exportar_estadisticas_csv(fecha_inicio, fecha_fin, formato)
+        elif tipo_reporte == 'resumen':
+            return exportar_resumen_csv(fecha_inicio, fecha_fin, formato)
+        else:
+            return exportar_completo_csv(fecha_inicio, fecha_fin, formato)
+            
+    except Exception as e:
+        print(f"❌ Error al exportar CSV: {e}")
+        print(f"📍 Stack trace: {traceback.format_exc()}")
+        return redirect(url_for('registros'))
+
+def exportar_completo_csv(fecha_inicio, fecha_fin, formato='csv'):
+    """Exportar todos los registros detallados"""
+    try:
+        # Obtener registros con manejo robusto de errores
         response = supabase.table('tiempos_descanso').select("*, usuarios(nombre, codigo, turno)")\
             .gte('fecha', fecha_inicio)\
             .lte('fecha', fecha_fin)\
             .order('fecha', desc=True)\
             .order('inicio', desc=True)\
             .execute()
-        registros = response.data
+        
+        registros = response.data or []
+        print(f"📊 Registros obtenidos para exportación: {len(registros)}")
         
         # Crear CSV en memoria
         output = io.StringIO()
-        writer = csv.writer(output)
+        writer = csv.writer(output, delimiter=';', quotechar='"')
         
-        # Encabezados
-        writer.writerow(['Fecha', 'Nombre', 'Código', 'Turno', 'Tipo', 'Entrada', 'Salida', 'Duración (min)'])
+        # Encabezados mejorados
+        writer.writerow([
+            'Fecha',
+            'Día de la Semana', 
+            'Nombre Completo',
+            'Código',
+            'Turno',
+            'Tipo de Descanso',
+            'Hora Entrada',
+            'Hora Salida',
+            'Duración (minutos)',
+            'Duración (horas)',
+            'Exceso (minutos)',
+            'Estado',
+            'Observaciones'
+        ])
         
-        # Datos
+        # Datos con información enriquecida
         for r in registros:
-            writer.writerow([
-                datetime.fromisoformat(r['fecha']).strftime('%d/%m/%Y'),
-                r['usuarios']['nombre'],
-                r['usuarios']['codigo'],
-                r['usuarios']['turno'],
-                r['tipo'],
-                r['inicio'],
-                r['fin'],
-                r['duracion_minutos']
-            ])
+            try:
+                fecha_obj = datetime.fromisoformat(r['fecha'])
+                usuario_data = r.get('usuarios', {})
+                duracion = r.get('duracion_minutos', 0)
+                tipo = r.get('tipo', 'DESCANSO')
+                
+                # Calcular exceso
+                limite = 40 if tipo == 'COMIDA' else 20
+                exceso = max(0, duracion - limite)
+                
+                # Determinar estado
+                if exceso > 30:
+                    estado = 'EXCESO ALTO'
+                elif exceso > 0:
+                    estado = 'CON EXCESO'
+                else:
+                    estado = 'NORMAL'
+                
+                # Observaciones
+                observaciones = []
+                if exceso > 0:
+                    observaciones.append(f'Excedió {exceso} min del límite')
+                if duracion < 5:
+                    observaciones.append('Duración muy corta')
+                
+                writer.writerow([
+                    fecha_obj.strftime('%d/%m/%Y'),
+                    fecha_obj.strftime('%A').capitalize(),
+                    usuario_data.get('nombre', 'Usuario Desconocido'),
+                    usuario_data.get('codigo', 'N/A'),
+                    usuario_data.get('turno', 'N/A'),
+                    tipo,
+                    r.get('inicio', 'N/A'),
+                    r.get('fin', 'N/A'),
+                    duracion,
+                    round(duracion / 60, 2),
+                    exceso,
+                    estado,
+                    '; '.join(observaciones) if observaciones else 'Sin observaciones'
+                ])
+                
+            except Exception as e_row:
+                print(f"⚠️ Error procesando registro ID {r.get('id', 'desconocido')}: {e_row}")
+                continue
         
         # Preparar respuesta
         output.seek(0)
+        filename = f'descansos_completo_{fecha_inicio}_{fecha_fin}.csv'
+        
         return send_file(
-            io.BytesIO(output.getvalue().encode('utf-8')),
-            mimetype='text/csv',
+            io.BytesIO(output.getvalue().encode('utf-8-sig')),  # UTF-8 con BOM para Excel
+            mimetype='text/csv; charset=utf-8',
             as_attachment=True,
-            download_name=f'registros_descansos_{fecha_inicio}_{fecha_fin}.csv'
+            download_name=filename
         )
         
     except Exception as e:
-        print(f"Error al exportar CSV: {e}")
-        return redirect(url_for('registros'))
+        print(f"❌ Error en exportación completa: {e}")
+        raise e
+
+def exportar_resumen_csv(fecha_inicio, fecha_fin, formato='csv'):
+    """Exportar resumen por usuario"""
+    try:
+        # Obtener datos
+        response = supabase.table('tiempos_descanso').select("*, usuarios(nombre, codigo, turno)")\
+            .gte('fecha', fecha_inicio)\
+            .lte('fecha', fecha_fin)\
+            .execute()
+        
+        registros = response.data or []
+        
+        # Procesar estadísticas por usuario
+        stats_usuarios = {}
+        
+        for r in registros:
+            try:
+                usuario_data = r.get('usuarios', {})
+                usuario_nombre = usuario_data.get('nombre', 'Usuario Desconocido')
+                
+                if usuario_nombre not in stats_usuarios:
+                    stats_usuarios[usuario_nombre] = {
+                        'codigo': usuario_data.get('codigo', 'N/A'),
+                        'turno': usuario_data.get('turno', 'N/A'),
+                        'total_descansos': 0,
+                        'total_comidas': 0,
+                        'tiempo_descansos': 0,
+                        'tiempo_comidas': 0,
+                        'exceso_descansos': 0,
+                        'exceso_comidas': 0,
+                        'dias_activos': set()
+                    }
+                
+                tipo = r.get('tipo', 'DESCANSO')
+                duracion = r.get('duracion_minutos', 0)
+                fecha = r.get('fecha', '')
+                
+                # Actualizar estadísticas
+                if tipo == 'DESCANSO':
+                    stats_usuarios[usuario_nombre]['total_descansos'] += 1
+                    stats_usuarios[usuario_nombre]['tiempo_descansos'] += duracion
+                    if duracion > 20:
+                        stats_usuarios[usuario_nombre]['exceso_descansos'] += (duracion - 20)
+                else:
+                    stats_usuarios[usuario_nombre]['total_comidas'] += 1
+                    stats_usuarios[usuario_nombre]['tiempo_comidas'] += duracion
+                    if duracion > 40:
+                        stats_usuarios[usuario_nombre]['exceso_comidas'] += (duracion - 40)
+                
+                stats_usuarios[usuario_nombre]['dias_activos'].add(fecha)
+                
+            except Exception as e_user:
+                print(f"⚠️ Error procesando usuario en registro: {e_user}")
+                continue
+        
+        # Crear CSV
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=';', quotechar='"')
+        
+        # Encabezados
+        writer.writerow([
+            'Nombre',
+            'Código',
+            'Turno',
+            'Días Activos',
+            'Total Descansos',
+            'Total Comidas',
+            'Tiempo Total Descansos (min)',
+            'Tiempo Total Comidas (min)',
+            'Tiempo Total (horas)',
+            'Promedio Descanso (min)',
+            'Promedio Comida (min)',
+            'Exceso Descansos (min)',
+            'Exceso Comidas (min)',
+            'Exceso Total (min)',
+            'Eficiencia (%)',
+            'Estado General'
+        ])
+        
+        # Datos resumidos
+        for nombre, stats in stats_usuarios.items():
+            try:
+                # Convertir set a conteo
+                dias_activos = len(stats['dias_activos'])
+                
+                # Calcular promedios
+                promedio_descanso = round(stats['tiempo_descansos'] / stats['total_descansos'], 1) if stats['total_descansos'] > 0 else 0
+                promedio_comida = round(stats['tiempo_comidas'] / stats['total_comidas'], 1) if stats['total_comidas'] > 0 else 0
+                
+                # Tiempo total
+                tiempo_total_min = stats['tiempo_descansos'] + stats['tiempo_comidas']
+                tiempo_total_horas = round(tiempo_total_min / 60, 2)
+                
+                # Exceso total
+                exceso_total = stats['exceso_descansos'] + stats['exceso_comidas']
+                
+                # Eficiencia (menos exceso = más eficiente)
+                tiempo_esperado = (stats['total_descansos'] * 20) + (stats['total_comidas'] * 40)
+                eficiencia = round((tiempo_esperado / tiempo_total_min * 100), 1) if tiempo_total_min > 0 else 100
+                
+                # Estado general
+                if exceso_total > 120:  # Más de 2 horas de exceso
+                    estado = 'CRÍTICO'
+                elif exceso_total > 60:  # Más de 1 hora de exceso
+                    estado = 'ALTO EXCESO'
+                elif exceso_total > 30:  # Más de 30 min de exceso
+                    estado = 'MODERADO EXCESO'
+                elif exceso_total > 0:
+                    estado = 'LEVE EXCESO'
+                else:
+                    estado = 'ÓPTIMO'
+                
+                writer.writerow([
+                    nombre,
+                    stats['codigo'],
+                    stats['turno'],
+                    dias_activos,
+                    stats['total_descansos'],
+                    stats['total_comidas'],
+                    stats['tiempo_descansos'],
+                    stats['tiempo_comidas'],
+                    tiempo_total_horas,
+                    promedio_descanso,
+                    promedio_comida,
+                    stats['exceso_descansos'],
+                    stats['exceso_comidas'],
+                    exceso_total,
+                    eficiencia,
+                    estado
+                ])
+                
+            except Exception as e_summary:
+                print(f"⚠️ Error creando resumen para {nombre}: {e_summary}")
+                continue
+        
+        # Preparar respuesta
+        output.seek(0)
+        filename = f'resumen_usuarios_{fecha_inicio}_{fecha_fin}.csv'
+        
+        return send_file(
+            io.BytesIO(output.getvalue().encode('utf-8-sig')),
+            mimetype='text/csv; charset=utf-8',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        print(f"❌ Error en exportación resumen: {e}")
+        raise e
+
+def exportar_estadisticas_csv(fecha_inicio, fecha_fin, formato='csv'):
+    """Exportar estadísticas generales del período"""
+    try:
+        # Obtener datos
+        response = supabase.table('tiempos_descanso').select("*, usuarios(nombre, codigo, turno)")\
+            .gte('fecha', fecha_inicio)\
+            .lte('fecha', fecha_fin)\
+            .execute()
+        
+        registros = response.data or []
+        
+        # Crear CSV
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=';', quotechar='"')
+        
+        # Estadísticas generales
+        total_registros = len(registros)
+        total_descansos = len([r for r in registros if r.get('tipo') == 'DESCANSO'])
+        total_comidas = len([r for r in registros if r.get('tipo') == 'COMIDA'])
+        
+        tiempo_total_descansos = sum(r.get('duracion_minutos', 0) for r in registros if r.get('tipo') == 'DESCANSO')
+        tiempo_total_comidas = sum(r.get('duracion_minutos', 0) for r in registros if r.get('tipo') == 'COMIDA')
+        
+        # Escribir estadísticas generales
+        writer.writerow(['ESTADÍSTICAS GENERALES'])
+        writer.writerow(['Período', f'{fecha_inicio} a {fecha_fin}'])
+        writer.writerow(['Fecha de exportación', datetime.now().strftime('%d/%m/%Y %H:%M:%S')])
+        writer.writerow([])
+        
+        writer.writerow(['RESUMEN GENERAL'])
+        writer.writerow(['Total de registros', total_registros])
+        writer.writerow(['Total descansos', total_descansos])
+        writer.writerow(['Total comidas', total_comidas])
+        writer.writerow(['Tiempo total descansos (min)', tiempo_total_descansos])
+        writer.writerow(['Tiempo total comidas (min)', tiempo_total_comidas])
+        writer.writerow(['Tiempo total (horas)', round((tiempo_total_descansos + tiempo_total_comidas) / 60, 2)])
+        writer.writerow([])
+        
+        # Promedios
+        writer.writerow(['PROMEDIOS'])
+        writer.writerow(['Promedio descanso (min)', round(tiempo_total_descansos / total_descansos, 1) if total_descansos > 0 else 0])
+        writer.writerow(['Promedio comida (min)', round(tiempo_total_comidas / total_comidas, 1) if total_comidas > 0 else 0])
+        writer.writerow([])
+        
+        # Estadísticas por día
+        writer.writerow(['ESTADÍSTICAS POR DÍA'])
+        writer.writerow(['Fecha', 'Día', 'Descansos', 'Comidas', 'Total', 'Usuarios Únicos'])
+        
+        # Agrupar por fecha
+        stats_por_dia = {}
+        for r in registros:
+            try:
+                fecha = r.get('fecha', '')
+                if fecha not in stats_por_dia:
+                    stats_por_dia[fecha] = {
+                        'descansos': 0,
+                        'comidas': 0,
+                        'usuarios': set()
+                    }
+                
+                tipo = r.get('tipo', 'DESCANSO')
+                usuario_data = r.get('usuarios', {})
+                usuario_nombre = usuario_data.get('nombre', 'Desconocido')
+                
+                if tipo == 'DESCANSO':
+                    stats_por_dia[fecha]['descansos'] += 1
+                else:
+                    stats_por_dia[fecha]['comidas'] += 1
+                
+                stats_por_dia[fecha]['usuarios'].add(usuario_nombre)
+                
+            except Exception as e_day:
+                print(f"⚠️ Error procesando día: {e_day}")
+                continue
+        
+        for fecha in sorted(stats_por_dia.keys()):
+            try:
+                fecha_obj = datetime.fromisoformat(fecha)
+                stats = stats_por_dia[fecha]
+                
+                writer.writerow([
+                    fecha_obj.strftime('%d/%m/%Y'),
+                    fecha_obj.strftime('%A').capitalize(),
+                    stats['descansos'],
+                    stats['comidas'],
+                    stats['descansos'] + stats['comidas'],
+                    len(stats['usuarios'])
+                ])
+                
+            except Exception as e_day_write:
+                print(f"⚠️ Error escribiendo día {fecha}: {e_day_write}")
+                continue
+        
+        # Preparar respuesta
+        output.seek(0)
+        filename = f'estadisticas_{fecha_inicio}_{fecha_fin}.csv'
+        
+        return send_file(
+            io.BytesIO(output.getvalue().encode('utf-8-sig')),
+            mimetype='text/csv; charset=utf-8',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        print(f"❌ Error en exportación estadísticas: {e}")
+        raise e
 
 # Middleware para verificar sesión activa
 @app.before_request

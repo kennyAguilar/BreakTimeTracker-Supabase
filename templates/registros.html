@@ -238,6 +238,60 @@
       {% endif %}
     </section>
 
+    <!-- SECCIÓN DE EXPORTACIÓN CSV -->
+    <section class="bg-yellow-900 border border-yellow-600 p-6 rounded-lg mb-6">
+      <h2 class="text-lg font-bold mb-4">📊 Exportar Datos a CSV</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- EXPORTACIÓN COMPLETA -->
+        <div class="bg-yellow-800 p-4 rounded-lg">
+          <h3 class="font-bold mb-2">📋 Reporte Completo</h3>
+          <p class="text-sm text-gray-300 mb-3">
+            Todos los registros detallados con información completa, excesos y observaciones.
+          </p>
+          <a href="{{ url_for('exportar_csv', tipo='completo', fecha_inicio=fecha_inicio, fecha_fin=fecha_fin) }}" 
+             class="block bg-blue-600 hover:bg-blue-700 text-white text-center px-4 py-2 rounded font-medium">
+            📥 Descargar Completo
+          </a>
+        </div>
+        
+        <!-- EXPORTACIÓN RESUMEN -->
+        <div class="bg-yellow-800 p-4 rounded-lg">
+          <h3 class="font-bold mb-2">📈 Resumen por Usuario</h3>
+          <p class="text-sm text-gray-300 mb-3">
+            Estadísticas resumidas por usuario: totales, promedios, excesos y eficiencia.
+          </p>
+          <a href="{{ url_for('exportar_csv', tipo='resumen', fecha_inicio=fecha_inicio, fecha_fin=fecha_fin) }}" 
+             class="block bg-green-600 hover:bg-green-700 text-white text-center px-4 py-2 rounded font-medium">
+            📊 Descargar Resumen
+          </a>
+        </div>
+        
+        <!-- EXPORTACIÓN ESTADÍSTICAS -->
+        <div class="bg-yellow-800 p-4 rounded-lg">
+          <h3 class="font-bold mb-2">📉 Estadísticas Generales</h3>
+          <p class="text-sm text-gray-300 mb-3">
+            Análisis estadístico del período: totales, promedios y datos por día.
+          </p>
+          <a href="{{ url_for('exportar_csv', tipo='estadisticas', fecha_inicio=fecha_inicio, fecha_fin=fecha_fin) }}" 
+             class="block bg-purple-600 hover:bg-purple-700 text-white text-center px-4 py-2 rounded font-medium">
+            📈 Descargar Estadísticas
+          </a>
+        </div>
+      </div>
+      
+      <div class="mt-4 p-3 bg-yellow-800 rounded-lg">
+        <h4 class="text-sm font-bold mb-2">💡 Información sobre los archivos CSV:</h4>
+        <ul class="text-xs text-gray-300 space-y-1">
+          <li>• <strong>Completo:</strong> Cada fila = un descanso individual con todos los detalles</li>
+          <li>• <strong>Resumen:</strong> Cada fila = un usuario con estadísticas totales del período</li>
+          <li>• <strong>Estadísticas:</strong> Información general + datos agrupados por día</li>
+          <li>• <strong>Formato:</strong> UTF-8 con separador punto y coma (;) para Excel</li>
+          <li>• <strong>Período:</strong> Se respetan los filtros de fecha aplicados</li>
+        </ul>
+      </div>
+    </section>
+
   </main>
 
   <footer class="mt-8 py-4 text-center text-gray-400 text-sm">
