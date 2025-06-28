@@ -132,6 +132,78 @@ body {
 
 /* ======= ESTILOS PARA DASHBOARD DE REPORTES ======= */
 
+/* SECCIÓN DE EXPORTACIÓN CSV */
+.csv-export-section {
+    background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+    border-radius: 10px;
+    border: 1px solid #60a5fa;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+}
+
+.csv-export-title {
+    color: white;
+    margin-bottom: 15px;
+}
+
+.csv-export-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.csv-export-card {
+    background: rgba(255,255,255,0.1);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.csv-export-card-title {
+    color: white;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.csv-export-card-description {
+    color: rgba(255,255,255,0.8);
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.csv-export-btn {
+    padding: 8px 16px;
+    border-radius: 5px;
+    text-decoration: none;
+    display: inline-block;
+    font-weight: bold;
+    color: white;
+}
+
+.csv-export-btn-completo {
+    background: #10b981;
+}
+
+.csv-export-btn-resumen {
+    background: #f59e0b;
+}
+
+.csv-export-btn-estadisticas {
+    background: #8b5cf6;
+}
+
+.csv-export-info {
+    background: rgba(0,0,0,0.2);
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 15px;
+}
+
+.csv-export-info-text {
+    color: rgba(255,255,255,0.9);
+    font-size: 11px;
+}
+
 /* TEMA OSCURO PARA REPORTES */
 .reportes-body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;

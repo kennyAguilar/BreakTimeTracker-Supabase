@@ -26,49 +26,49 @@
 <div class="container mt-4">
     
     <!-- ======= SECCIÓN DE EXPORTACIÓN CSV ======= -->
-    <div class="mb-4 p-3" style="background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-radius: 10px; border: 1px solid #60a5fa;">
-        <h3 class="section-title mb-3" style="color: white; margin-bottom: 15px;">📊 Exportar Reportes a CSV</h3>
+    <div class="csv-export-section">
+        <h3 class="section-title csv-export-title">📊 Exportar Reportes a CSV</h3>
         
-        <div class="row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+        <div class="csv-export-grid">
             <!-- EXPORTACIÓN COMPLETA -->
-            <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                <h5 style="color: white; font-weight: bold; margin-bottom: 8px;">📋 Reporte Completo</h5>
-                <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-bottom: 10px;">
+            <div class="csv-export-card">
+                <h5 class="csv-export-card-title">📋 Reporte Completo</h5>
+                <p class="csv-export-card-description">
                     Todos los registros individuales con detalles completos
                 </p>
                 <a href="{{ url_for('exportar_csv', tipo='completo', fecha_inicio=fecha_inicio, fecha_fin=fecha_fin) }}" 
-                   class="btn btn-sm" style="background: #10b981; color: white; padding: 8px 16px; border-radius: 5px; text-decoration: none; display: inline-block; font-weight: bold;">
+                   class="csv-export-btn csv-export-btn-completo">
                     📥 Descargar
                 </a>
             </div>
             
             <!-- EXPORTACIÓN RESUMEN -->
-            <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                <h5 style="color: white; font-weight: bold; margin-bottom: 8px;">📈 Resumen por Usuario</h5>
-                <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-bottom: 10px;">
+            <div class="csv-export-card">
+                <h5 class="csv-export-card-title">📈 Resumen por Usuario</h5>
+                <p class="csv-export-card-description">
                     Estadísticas consolidadas por empleado
                 </p>
                 <a href="{{ url_for('exportar_csv', tipo='resumen', fecha_inicio=fecha_inicio, fecha_fin=fecha_fin) }}" 
-                   class="btn btn-sm" style="background: #f59e0b; color: white; padding: 8px 16px; border-radius: 5px; text-decoration: none; display: inline-block; font-weight: bold;">
+                   class="csv-export-btn csv-export-btn-resumen">
                     📊 Descargar
                 </a>
             </div>
             
             <!-- EXPORTACIÓN ESTADÍSTICAS -->
-            <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
-                <h5 style="color: white; font-weight: bold; margin-bottom: 8px;">📉 Análisis Estadístico</h5>
-                <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin-bottom: 10px;">
+            <div class="csv-export-card">
+                <h5 class="csv-export-card-title">📉 Análisis Estadístico</h5>
+                <p class="csv-export-card-description">
                     Estadísticas generales y tendencias
                 </p>
                 <a href="{{ url_for('exportar_csv', tipo='estadisticas', fecha_inicio=fecha_inicio, fecha_fin=fecha_fin) }}" 
-                   class="btn btn-sm" style="background: #8b5cf6; color: white; padding: 8px 16px; border-radius: 5px; text-decoration: none; display: inline-block; font-weight: bold;">
+                   class="csv-export-btn csv-export-btn-estadisticas">
                     📈 Descargar
                 </a>
             </div>
         </div>
         
-        <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 5px; margin-top: 15px;">
-            <small style="color: rgba(255,255,255,0.9); font-size: 11px;">
+        <div class="csv-export-info">
+            <small class="csv-export-info-text">
                 💡 <strong>Información:</strong> Los archivos CSV usan codificación UTF-8 y separador punto y coma (;) para compatibilidad con Excel. 
                 Se respeta el período de fechas seleccionado en los filtros.
             </small>
