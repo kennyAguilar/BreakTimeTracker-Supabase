@@ -9,6 +9,9 @@ import io
 import traceback
 from functools import wraps
 
+# Importar utilidades de parsing de tarjetas
+from tarjeta_utils import parse_card_data, validate_card_format, get_card_info, debug_card_parsing
+
 # Cargar variables de entorno
 load_dotenv()
 
@@ -217,75 +220,96 @@ def index():
     tipo_mensaje = None
     
     if request.method == 'POST':
-        entrada = request.form.get('entrada', '').strip()
+        entrada_raw = request.form.get('entrada', '').strip()
         
-        if entrada:
-            print(f"🔍 Buscando usuario con entrada: '{entrada}'")
-            try:
-                # Buscar usuario por tarjeta
-                response = supabase.table('usuarios').select("*").eq('tarjeta', entrada).execute()
-                usuario = response.data[0] if response.data else None
-                print(f"🆔 Búsqueda por tarjeta: {len(response.data)} resultados")
-                
-                # Si no se encuentra por tarjeta, buscar por código
-                if not usuario:
-                    response = supabase.table('usuarios').select("*").eq('codigo', entrada.upper()).execute()
-                    usuario = response.data[0] if response.data else None
-                    print(f"🔤 Búsqueda por código: {len(response.data)} resultados")
-                
-                if usuario:
-                    print(f"👤 Usuario encontrado: {usuario['nombre']} (ID: {usuario['id']})")
-                    
-                    # Verificar si tiene descanso activo
-                    response = supabase.table('descansos').select("*").eq('usuario_id', usuario['id']).execute()
-                    descanso_activo = response.data[0] if response.data else None
-                    
-                    print(f"🔍 Descansos encontrados: {len(response.data)}")
-                    if descanso_activo:
-                        print(f"⏰ Descanso activo encontrado: ID {descanso_activo['id']}, Inicio: {descanso_activo['inicio']}")
-                    
-                    if descanso_activo:
-                        print(f"🚪 PROCESANDO SALIDA DE DESCANSO")
-                        print(f"   Usuario: {usuario['nombre']} (ID: {usuario['id']})")
-                        print(f"   Descanso ID: {descanso_activo['id']}")
-                        
-                        # Usar función helper para cerrar descanso
-                        success, resultado_msg, detalle = cerrar_descanso_usuario(usuario['id'], descanso_activo)
-                        
-                        if success:
-                            mensaje = f"{usuario['nombre']} - Salida registrada ({resultado_msg})"
-                            tipo_mensaje = "salida"
-                            print(f"🎉 SALIDA PROCESADA EXITOSAMENTE: {resultado_msg}")
-                        else:
-                            mensaje = f"Error al registrar salida de {usuario['nombre']}: {resultado_msg}"
-                            tipo_mensaje = "error"
-                            print(f"❌ FALLO EN SALIDA: {resultado_msg}")
-                            print(f"   Detalles: {detalle}")
-                            
-                    else:
-                        # Registrar entrada a descanso
-                        try:
-                            insert_response = supabase_admin.table('descansos').insert({
-                                'usuario_id': usuario['id'],
-                                'inicio': datetime.now(pytz.UTC).isoformat(),
-                                'tipo': 'Pendiente'
-                            }).execute()
-                            
-                            print(f"✅ Entrada registrada: {insert_response.data}")
-                            mensaje = f"{usuario['nombre']} - Entrada a descanso registrada"
-                            tipo_mensaje = "entrada"
-                            
-                        except Exception as e:
-                            print(f"❌ Error registrando entrada: {e}")
-                            mensaje = f"Error al registrar entrada: {str(e)}"
-                            tipo_mensaje = "error"
-                else:
-                    mensaje = "Usuario no encontrado"
-                    tipo_mensaje = "error"
-                    
-            except Exception as e:
-                mensaje = f"Error al procesar: {str(e)}"
+        if entrada_raw:
+            # ✨ NUEVA FUNCIONALIDAD: Parsear datos de tarjeta con banda magnética
+            entrada = parse_card_data(entrada_raw)
+            
+            print(f"🔍 Procesando entrada:")
+            print(f"   Datos crudos: '{entrada_raw}'")
+            print(f"   Datos parseados: '{entrada}'")
+            
+            # Validar formato de tarjeta
+            if not validate_card_format(entrada):
+                print(f"⚠️ Formato de tarjeta inválido")
+                mensaje = "Formato de tarjeta inválido. Intente nuevamente."
                 tipo_mensaje = "error"
+            else:
+                try:
+                    # Buscar usuario por tarjeta
+                    response = supabase.table('usuarios').select("*").eq('tarjeta', entrada).execute()
+                    usuario = response.data[0] if response.data else None
+                    print(f"🆔 Búsqueda por tarjeta: {len(response.data)} resultados")
+                    
+                    # Si no se encuentra por tarjeta, buscar por código
+                    if not usuario:
+                        response = supabase.table('usuarios').select("*").eq('codigo', entrada.upper()).execute()
+                        usuario = response.data[0] if response.data else None
+                        print(f"🔤 Búsqueda por código: {len(response.data)} resultados")
+                    
+                    # Si aún no se encuentra, intentar con datos originales (fallback)
+                    if not usuario and entrada != entrada_raw:
+                        print(f"🔄 Intentando con datos originales como fallback...")
+                        response = supabase.table('usuarios').select("*").eq('tarjeta', entrada_raw).execute()
+                        if not response.data:
+                            response = supabase.table('usuarios').select("*").eq('codigo', entrada_raw.upper()).execute()
+                        usuario = response.data[0] if response.data else None
+                        print(f"🔄 Búsqueda con datos originales: {len(response.data)} resultados")
+                    
+                    if usuario:
+                        print(f"👤 Usuario encontrado: {usuario['nombre']} (ID: {usuario['id']})")
+                        
+                        # Verificar si tiene descanso activo
+                        response = supabase.table('descansos').select("*").eq('usuario_id', usuario['id']).execute()
+                        descanso_activo = response.data[0] if response.data else None
+                        
+                        print(f"🔍 Descansos encontrados: {len(response.data)}")
+                        if descanso_activo:
+                            print(f"⏰ Descanso activo encontrado: ID {descanso_activo['id']}, Inicio: {descanso_activo['inicio']}")
+                        
+                        if descanso_activo:
+                            print(f"🚪 PROCESANDO SALIDA DE DESCANSO")
+                            print(f"   Usuario: {usuario['nombre']} (ID: {usuario['id']})")
+                            print(f"   Descanso ID: {descanso_activo['id']}")
+                            
+                            # Usar función helper para cerrar descanso
+                            success, resultado_msg, detalle = cerrar_descanso_usuario(usuario['id'], descanso_activo)
+                            
+                            if success:
+                                mensaje = f"{usuario['nombre']} - Salida registrada ({resultado_msg})"
+                                tipo_mensaje = "salida"
+                                print(f"🎉 SALIDA PROCESADA EXITOSAMENTE: {resultado_msg}")
+                            else:
+                                mensaje = f"Error al registrar salida de {usuario['nombre']}: {resultado_msg}"
+                                tipo_mensaje = "error"
+                                print(f"❌ FALLO EN SALIDA: {resultado_msg}")
+                                print(f"   Detalles: {detalle}")
+                                
+                        else:
+                            # Registrar entrada a descanso
+                            try:
+                                insert_response = supabase_admin.table('descansos').insert({
+                                    'usuario_id': usuario['id'],
+                                    'inicio': datetime.now(pytz.UTC).isoformat(),
+                                    'tipo': 'Pendiente'
+                                }).execute()
+                                
+                                print(f"✅ Entrada registrada: {insert_response.data}")
+                                mensaje = f"{usuario['nombre']} - Entrada a descanso registrada"
+                                tipo_mensaje = "entrada"
+                                
+                            except Exception as e:
+                                print(f"❌ Error registrando entrada: {e}")
+                                mensaje = f"Error al registrar entrada: {str(e)}"
+                                tipo_mensaje = "error"
+                    else:
+                        mensaje = "Usuario no encontrado"
+                        tipo_mensaje = "error"
+                        
+                except Exception as e:
+                    mensaje = f"Error al procesar: {str(e)}"
+                    tipo_mensaje = "error"
     
     # Obtener usuarios en descanso con información de usuario
     usuarios_en_descanso = []
@@ -2085,6 +2109,115 @@ def debug_reportes():
             'debug_info': debug_info if 'debug_info' in locals() else [],
             'traceback': traceback.format_exc()
         })
+
+# Ruta de prueba para parsing de tarjetas
+@app.route('/test_card_parsing', methods=['GET', 'POST'])
+def test_card_parsing():
+    """Ruta para probar el parsing de tarjetas de banda magnética"""
+    
+    if request.method == 'POST':
+        raw_data = request.form.get('raw_data', '').strip()
+        
+        if raw_data:
+            try:
+                # Usar las funciones de tarjeta_utils para debugging
+                card_info = get_card_info(raw_data)
+                debug_info = debug_card_parsing(raw_data)
+                
+                # Intentar parsing básico
+                parsed_code = parse_card_data(raw_data)
+                is_valid = validate_card_format(parsed_code)
+                
+                result = {
+                    'success': True,
+                    'raw_data': raw_data,
+                    'parsed_code': parsed_code,
+                    'is_valid': is_valid,
+                    'card_info': card_info,
+                    'debug_info': debug_info
+                }
+                
+                print(f"🧪 Test de parsing de tarjeta:")
+                print(f"   Datos entrada: '{raw_data}'")
+                print(f"   Código parseado: '{parsed_code}'")
+                print(f"   Es válido: {is_valid}")
+                print(f"   Información: {card_info}")
+                
+                return jsonify(result)
+                
+            except Exception as e:
+                error_result = {
+                    'success': False,
+                    'error': str(e),
+                    'error_type': type(e).__name__,
+                    'raw_data': raw_data,
+                    'traceback': traceback.format_exc()
+                }
+                
+                print(f"❌ Error en test de parsing: {e}")
+                return jsonify(error_result)
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'No se proporcionaron datos de tarjeta',
+                'raw_data': ''
+            })
+    
+    # GET request - mostrar formulario de prueba
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Test Parsing de Tarjetas</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .container { max-width: 800px; margin: 0 auto; }
+            .form-group { margin: 15px 0; }
+            label { display: block; margin-bottom: 5px; font-weight: bold; }
+            input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+            button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+            button:hover { background: #0056b3; }
+            .result { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; }
+            .example { background: #e9ecef; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🧪 Test Parsing de Tarjetas de Banda Magnética</h1>
+            
+            <form method="POST">
+                <div class="form-group">
+                    <label for="raw_data">Datos de Tarjeta (pegar aquí los datos del lector):</label>
+                    <textarea id="raw_data" name="raw_data" rows="4" placeholder="Pegar datos de la tarjeta aquí..."></textarea>
+                </div>
+                
+                <button type="submit">🔍 Probar Parsing</button>
+            </form>
+            
+            <div class="example">
+                <h3>📋 Ejemplos de formatos soportados:</h3>
+                <ul>
+                    <li><strong>Track 1:</strong> %B123456789^DOE/JOHN^2512101?</li>
+                    <li><strong>Track 2:</strong> ;123456789=2512101?</li>
+                    <li><strong>Numérico:</strong> 123456789</li>
+                    <li><strong>Con prefijo:</strong> EMPL123456</li>
+                </ul>
+            </div>
+            
+            <div class="result">
+                <h3>ℹ️ Instrucciones:</h3>
+                <ol>
+                    <li>Pase una tarjeta por el lector</li>
+                    <li>Copie los datos que aparecen</li>
+                    <li>Péguelos en el campo de texto</li>
+                    <li>Haga clic en "Probar Parsing"</li>
+                    <li>Revise los resultados en formato JSON</li>
+                </ol>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
