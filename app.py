@@ -682,10 +682,38 @@ def editar_usuario(user_id):
 @app.route('/registros')
 @login_required
 def registros():
-    # Obtener parámetros de filtro
-    fecha_inicio = request.args.get('fecha_inicio', '')
-    fecha_fin = request.args.get('fecha_fin', '')
+    # Obtener parámetros de filtro con múltiples nombres posibles
+    fecha_inicio = request.args.get('fecha_inicio') or request.args.get('jornada_inicio', '')
+    fecha_fin = request.args.get('fecha_fin') or request.args.get('jornada_fin', '')
     usuario_id = request.args.get('usuario_id', '')
+    usuario_nombre = request.args.get('usuario', '')
+    filtro_rapido = request.args.get('filtro_rapido', '')
+    tipo_descanso = request.args.get('tipo', '')
+    
+    print(f"🔍 Parámetros de filtro recibidos:")
+    print(f"   fecha_inicio: '{fecha_inicio}'")
+    print(f"   fecha_fin: '{fecha_fin}'")
+    print(f"   usuario_id: '{usuario_id}'")
+    print(f"   usuario_nombre: '{usuario_nombre}'")
+    print(f"   filtro_rapido: '{filtro_rapido}'")
+    print(f"   tipo_descanso: '{tipo_descanso}'")
+    
+    # Procesar filtros rápidos
+    if filtro_rapido:
+        if filtro_rapido == 'hoy':
+            fecha_inicio = date.today().isoformat()
+            fecha_fin = date.today().isoformat()
+        elif filtro_rapido == 'ayer':
+            ayer = date.today() - timedelta(days=1)
+            fecha_inicio = ayer.isoformat()
+            fecha_fin = ayer.isoformat()
+        elif filtro_rapido == 'semana':
+            fecha_inicio = (date.today() - timedelta(days=7)).isoformat()
+            fecha_fin = date.today().isoformat()
+        elif filtro_rapido == 'mes':
+            fecha_inicio = (date.today() - timedelta(days=30)).isoformat()
+            fecha_fin = date.today().isoformat()
+        print(f"   Filtro rápido aplicado: {fecha_inicio} a {fecha_fin}")
     
     # Si no hay fechas, usar últimos 7 días
     if not fecha_inicio:
@@ -694,18 +722,37 @@ def registros():
         fecha_fin = date.today().isoformat()
     
     try:
-        # Construir query
-        query = supabase.table('tiempos_descanso').select("*, usuarios(nombre, codigo)")
+        # Construir query base
+        query = supabase.table('tiempos_descanso').select("*, usuarios(id, nombre, codigo)")
         
-        # Aplicar filtros
+        # Aplicar filtros de fecha
         query = query.gte('fecha', fecha_inicio).lte('fecha', fecha_fin)
+        print(f"   Filtro de fecha aplicado: {fecha_inicio} a {fecha_fin}")
         
+        # Filtro por usuario (puede ser por ID o por nombre)
         if usuario_id:
             query = query.eq('usuario_id', usuario_id)
+            print(f"   Filtro por usuario_id: {usuario_id}")
+        elif usuario_nombre:
+            # Buscar el ID del usuario por su nombre
+            user_response = supabase.table('usuarios').select("id").eq('nombre', usuario_nombre).execute()
+            if user_response.data:
+                usuario_id = user_response.data[0]['id']
+                query = query.eq('usuario_id', usuario_id)
+                print(f"   Filtro por usuario_nombre '{usuario_nombre}' → ID: {usuario_id}")
+            else:
+                print(f"   ⚠️ Usuario '{usuario_nombre}' no encontrado")
+        
+        # Filtro por tipo de descanso
+        if tipo_descanso:
+            query = query.eq('tipo', tipo_descanso)
+            print(f"   Filtro por tipo: {tipo_descanso}")
         
         # Ejecutar query
         response = query.order('fecha', desc=True).order('inicio', desc=True).execute()
-        registros = response.data
+        registros = response.data or []
+        
+        print(f"📊 Registros obtenidos después de filtros: {len(registros)}")
         
         # Formatear registros para mostrar
         for r in registros:
@@ -714,7 +761,7 @@ def registros():
         
         # Obtener lista de usuarios para el filtro
         response_usuarios = supabase.table('usuarios').select("id, nombre").order('nombre').execute()
-        usuarios = response_usuarios.data
+        usuarios = response_usuarios.data or []
         
         # Calcular estadísticas básicas
         total_registros = len(registros)
@@ -730,8 +777,20 @@ def registros():
             'promedio_duracion': round(tiempo_total / total_registros, 1) if total_registros > 0 else 0
         }
         
+        # Preparar objeto de filtros para el template
+        filtros_aplicados = {
+            'filtro_rapido': filtro_rapido,
+            'jornada_inicio': fecha_inicio,
+            'jornada_fin': fecha_fin,
+            'usuario': usuario_nombre,
+            'tipo': tipo_descanso
+        }
+        
+        print(f"✅ Renderizando template con {len(registros)} registros")
+        
     except Exception as e:
-        print(f"Error al obtener registros: {e}")
+        print(f"❌ Error al obtener registros: {e}")
+        print(f"📍 Stack trace: {traceback.format_exc()}")
         registros = []
         usuarios = []
         estadisticas = {
@@ -741,15 +800,17 @@ def registros():
             'tiempo_total': 0,
             'promedio_duracion': 0
         }
+        filtros_aplicados = {}
     
     return render_template('registros.html',
                          registros=registros,
                          usuarios=usuarios,
+                         usuarios_disponibles=usuarios,  # Para el select del template
                          fecha_inicio=fecha_inicio,
                          fecha_fin=fecha_fin,
                          usuario_id=usuario_id,
                          estadisticas=estadisticas,
-                         filtros={})
+                         filtros=filtros_aplicados)
 
 # Reportes y estadísticas
 @app.route('/reportes')
