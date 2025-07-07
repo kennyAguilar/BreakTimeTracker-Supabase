@@ -125,7 +125,8 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'admin_id' not in session:
-            return redirect(url_for('login'))
+            # Pasar solo la ruta como parámetro 'next'
+            return redirect(url_for('login', next=request.path))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -423,6 +424,10 @@ def index():
 # Login administrativo
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Debug: mostrar parámetro next
+    next_page = request.args.get('next')
+    print(f"🔍 Login accedido con parámetro next: '{next_page}'")
+    
     if request.method == 'POST':
         usuario = request.form.get('usuario', '').strip()
         clave = request.form.get('clave', '').strip()
@@ -453,7 +458,15 @@ def login():
                     session['admin_id'] = admin['id']
                     session['admin_nombre'] = admin['nombre']
                     session['last_activity'] = datetime.now().isoformat()
-                    return redirect(url_for('registros'))
+                    
+                    # Verificar si hay un destino específico
+                    next_page = request.args.get('next')
+                    if next_page and next_page in ['/base_datos', '/registros', '/reportes']:
+                        print(f"   🎯 Redirigiendo a página solicitada: {next_page}")
+                        return redirect(next_page)
+                    else:
+                        print(f"   🎯 Redirigiendo a página por defecto: registros")
+                        return redirect(url_for('registros'))
                 else:
                     print(f"   ❌ Clave incorrecta: '{clave}' != '{admin['clave']}'")
                     return render_template('login.html', error=f'Credenciales inválidas. Usuario: {usuario}, Clave esperada: {admin["clave"]}')
