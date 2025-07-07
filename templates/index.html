@@ -43,16 +43,16 @@
 
         const transcurridoMinutos = Math.floor((ahora - inicio) / 60000);
         const limite = tipo === 'COMIDA' ? 40 : 20;
-        const restante = limite - transcurridoMinutos;
 
-        if (restante > 0) {
-          el.innerText = `${restante} min`;
+        // Mostrar tiempo transcurrido en lugar de tiempo restante
+        if (transcurridoMinutos < limite) {
+          el.innerText = `${transcurridoMinutos} min`;
           el.className = el.className.replace(/text-(red|yellow|green)-400/, 'text-green-400');
-        } else if (restante === 0) {
-          el.innerText = '0 min';
+        } else if (transcurridoMinutos === limite) {
+          el.innerText = `${transcurridoMinutos} min`;
           el.className = el.className.replace(/text-(red|yellow|green)-400/, 'text-yellow-400');
         } else {
-          el.innerText = `+${Math.abs(restante)} min`;
+          el.innerText = `${transcurridoMinutos} min`;
           el.className = el.className.replace(/text-(red|yellow|green)-400/, 'text-red-400');
         }
       });
@@ -136,7 +136,7 @@
               <th class="pb-2 px-2">Nombre</th>
               <th class="pb-2 px-2">Hora de Ingreso</th>
               <th class="pb-2 px-2">Descanso</th>
-              <th class="pb-2 px-2">Tiempo Restante</th>
+              <th class="pb-2 px-2">Tiempo Transcurrido</th>
             </tr>
           </thead>
           <tbody>
@@ -182,7 +182,7 @@
               <span class="text-white">{{ descanso.inicio_formateado }}</span>
             </div>
             <div>
-              <span class="text-gray-400">Restante:</span>
+              <span class="text-gray-400">Transcurrido:</span>
               <span class="text-white" data-inicio-iso="{{ descanso.inicio_iso }}" data-tipo="{{ descanso.tipo_probable }}">
                 {% if descanso.tiempo_restante is number and descanso.tiempo_restante >= 0 %}
                   {{ descanso.tiempo_restante }} min

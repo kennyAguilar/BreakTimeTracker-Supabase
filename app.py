@@ -12,6 +12,9 @@ from functools import wraps
 # Importar utilidades de parsing de tarjetas
 from tarjeta_utils import parse_card_data, validate_card_format, get_card_info, debug_card_parsing
 
+# Importar utilidades de tiempo
+from time_utils import get_current_time, get_current_time_formatted, format_datetime_for_display, format_time_only
+
 # Cargar variables de entorno
 load_dotenv()
 
@@ -110,8 +113,8 @@ except Exception as e:
     
     exit(1)
 
-# Zona horaria
-tz = pytz.timezone('America/Punta_Arenas')
+# Zona horaria (importada de time_utils)
+from time_utils import TZ as tz
 
 # Decorador para rutas protegidas
 def login_required(f):
@@ -121,10 +124,6 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
-
-# Función auxiliar para obtener hora actual en Punta Arenas
-def get_current_time():
-    return datetime.now(tz)
 
 # Función auxiliar para cerrar un descanso
 def cerrar_descanso_usuario(usuario_id, descanso_activo):
@@ -141,21 +140,36 @@ def cerrar_descanso_usuario(usuario_id, descanso_activo):
         if inicio.tzinfo is None:
             inicio = inicio.replace(tzinfo=pytz.UTC)
         
-        fin = datetime.now(pytz.UTC)  # Usar UTC para consistencia
+        fin = get_current_time()  # Usar hora local
         duracion_minutos = max(1, int((fin - inicio).total_seconds() / 60))  # Mínimo 1 minuto
         tipo = 'COMIDA' if duracion_minutos >= 30 else 'DESCANSO'
         
         print(f"   Duración: {duracion_minutos} min → {tipo}")
         
+        # Convertir ambos tiempos a la misma zona horaria (local)
+        inicio_local = inicio.astimezone(tz)
+        fin_local = fin  # ya está en hora local
+        
+        print(f"   🕐 Conversión de tiempos:")
+        print(f"      Inicio UTC: {inicio.strftime('%H:%M:%S %Z')}")
+        print(f"      Inicio Local: {inicio_local.strftime('%H:%M:%S %Z')}")
+        print(f"      Fin Local: {fin_local.strftime('%H:%M:%S %Z')}")
+        
         # Preparar datos para tiempos_descanso
         tiempo_data = {
             'usuario_id': usuario_id,
             'tipo': tipo,
-            'fecha': inicio.date().isoformat(),
-            'inicio': inicio.time().isoformat(),
-            'fin': fin.time().isoformat(),
+            'fecha': inicio_local.date().isoformat(),
+            'inicio': inicio_local.time().isoformat(),
+            'fin': fin_local.time().isoformat(),
             'duracion_minutos': duracion_minutos
         }
+        
+        print(f"   📊 Datos a insertar:")
+        print(f"      Fecha: {tiempo_data['fecha']}")
+        print(f"      Inicio: {tiempo_data['inicio']}")
+        print(f"      Fin: {tiempo_data['fin']}")
+        print(f"      Duración: {tiempo_data['duracion_minutos']} min")
         
         # Paso 1: Insertar en tiempos_descanso
         print(f"   📝 Insertando tiempo de descanso...")
@@ -291,7 +305,7 @@ def index():
                             try:
                                 insert_response = supabase_admin.table('descansos').insert({
                                     'usuario_id': usuario['id'],
-                                    'inicio': datetime.now(pytz.UTC).isoformat(),
+                                    'inicio': get_current_time().isoformat(),
                                     'tipo': 'Pendiente'
                                 }).execute()
                                 
@@ -354,12 +368,12 @@ def index():
                         if inicio.tzinfo is None:
                             inicio = inicio.replace(tzinfo=pytz.UTC)
                         
-                        ahora = datetime.now(pytz.UTC)  # Usar UTC para consistencia
+                        ahora = get_current_time()  # Usar hora local
                         tiempo_transcurrido = int((ahora - inicio).total_seconds() / 60)
                         
                         print(f"   ⏰ Tiempo transcurrido: {tiempo_transcurrido} minutos")
                         print(f"      Inicio: {inicio.strftime('%H:%M:%S UTC')}")
-                        print(f"      Ahora: {ahora.strftime('%H:%M:%S UTC')}")
+                        print(f"      Ahora: {ahora.strftime('%H:%M:%S %Z')}")
                         
                         # Determinar tiempo máximo según el tiempo transcurrido
                         tiempo_maximo = 40 if tiempo_transcurrido >= 20 else 20
@@ -417,7 +431,7 @@ def index():
     
     return render_template('index.html',
                          descansos=usuarios_en_descanso,
-                         hora_actual=datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S'),
+                         hora_actual=get_current_time_formatted(),
                          mensaje=mensaje,
                          tipo_mensaje=tipo_mensaje,
                          conexion_status=conexion_supabase_status)
