@@ -15,6 +15,9 @@ from tarjeta_utils import parse_card_data, validate_card_format, get_card_info, 
 # Importar utilidades de tiempo
 from time_utils import get_current_time, get_current_time_formatted, format_datetime_for_display, format_time_only
 
+# Importar módulo de base de datos
+import db_utils
+
 # Cargar variables de entorno
 load_dotenv()
 
@@ -349,23 +352,40 @@ def index():
                     
                     # Calcular tiempo transcurrido
                     try:
+                        # Procesar hora de inicio asegurando zona horaria consistente
                         inicio = datetime.fromisoformat(d['inicio'].replace('Z', '+00:00'))
                         if inicio.tzinfo is None:
                             inicio = inicio.replace(tzinfo=pytz.UTC)
                         
-                        ahora = get_current_time()  # Usar hora local
-                        tiempo_transcurrido = int((ahora - inicio).total_seconds() / 60)
+                        # Convertir inicio a zona horaria local para comparar
+                        inicio_local = inicio.astimezone(tz)
+                        ahora = get_current_time()  # Ya está en hora local
                         
-                        print(f"   ⏰ Tiempo transcurrido: {tiempo_transcurrido} minutos")
-                        print(f"      Inicio: {inicio.strftime('%H:%M:%S UTC')}")
-                        print(f"      Ahora: {ahora.strftime('%H:%M:%S %Z')}")
+                        # Calcular diferencia en minutos
+                        diferencia_segundos = (ahora - inicio_local).total_seconds()
+                        tiempo_transcurrido = int(diferencia_segundos / 60)
+                        
+                        # Debug: mostrar cálculos detallados
+                        print(f"   ⏰ Cálculo de tiempo:")
+                        print(f"      Inicio UTC: {inicio.strftime('%H:%M:%S %Z')}")
+                        print(f"      Inicio Local: {inicio_local.strftime('%H:%M:%S %Z')}")
+                        print(f"      Ahora Local: {ahora.strftime('%H:%M:%S %Z')}")
+                        print(f"      Diferencia segundos: {diferencia_segundos}")
+                        print(f"      Tiempo transcurrido: {tiempo_transcurrido} minutos")
+                        
+                        # Si el tiempo es negativo, podría ser un problema de sincronización
+                        if tiempo_transcurrido < 0:
+                            print(f"   ⚠️ ADVERTENCIA: Tiempo negativo detectado ({tiempo_transcurrido} min)")
+                            print(f"      Esto podría indicar un problema de sincronización de tiempo")
+                            # Forzar a 0 para evitar valores negativos en la UI
+                            tiempo_transcurrido = 0
                         
                         # Determinar tiempo máximo según el tiempo transcurrido
                         tiempo_maximo = 40 if tiempo_transcurrido >= 20 else 20
                         tiempo_restante = max(0, tiempo_maximo - tiempo_transcurrido)
                         tipo_probable = 'COMIDA' if tiempo_transcurrido >= 20 else 'DESCANSO'
                         
-                        # Asegurar que los valores sean números válidos
+                        # Asegurar que los valores sean números válidos y no negativos
                         tiempo_transcurrido = max(0, tiempo_transcurrido)
                         tiempo_restante = max(0, tiempo_restante)
                         
@@ -394,7 +414,6 @@ def index():
                     
             except Exception as e_usuario:
                 print(f"   ❌ Error procesando descanso individual (ID: {d['id']}): {e_usuario}")
-                import traceback
                 print(f"   Stack trace: {traceback.format_exc()}")
         
         print(f"\n📊 RESUMEN FINAL:")
@@ -410,7 +429,6 @@ def index():
             
     except Exception as e:
         print(f"❌ ERROR CRÍTICO al obtener descansos: {e}")
-        import traceback
         print(f"Stack trace completo: {traceback.format_exc()}")
         usuarios_en_descanso = []
     
