@@ -90,7 +90,7 @@
             class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white"
           >
             <option value="">Seleccionar turno</option>
-            <option value="Full">Full Time</option>
+            <option value="Full">Full</option>
             <option value="Part Time">Part Time</option>
             <option value="Llamado">Llamado</option>
           </select>
@@ -147,7 +147,7 @@
               <td class="px-2 py-2 font-medium">{{ u.nombre }}</td>
               <td class="px-2 py-2 font-mono text-sm">{{ u.tarjeta }}</td>
               <td class="px-2 py-2">
-                <span class="{% if u.turno == 'Full Time' %}bg-green-600{% elif u.turno == 'Part Time' %}bg-yellow-600{% else %}bg-blue-600{% endif %} px-2 py-1 rounded text-xs">
+                <span class="{% if u.turno == 'Full' %}bg-green-600{% elif u.turno == 'Part Time' %}bg-yellow-600{% else %}bg-blue-600{% endif %} px-2 py-1 rounded text-xs">
                   {{ u.turno }}
                 </span>
               </td>
@@ -193,7 +193,7 @@
               <h3 class="font-bold text-sm">{{ u.nombre }}</h3>
               <p class="text-xs text-gray-300 font-mono">{{ u.codigo }}</p>
             </div>
-            <span class="{% if u.turno == 'Full Time' %}bg-green-600{% elif u.turno == 'Part Time' %}bg-yellow-600{% else %}bg-blue-600{% endif %} px-2 py-1 rounded text-xs">
+            <span class="{% if u.turno == 'Full' %}bg-green-600{% elif u.turno == 'Part Time' %}bg-yellow-600{% else %}bg-blue-600{% endif %} px-2 py-1 rounded text-xs">
               {{ u.turno }}
             </span>
           </div>

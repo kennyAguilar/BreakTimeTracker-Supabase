@@ -86,7 +86,7 @@
             required 
             class="w-full p-3 rounded bg-gray-700 border border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           >
-            <option value="Full Time" {% if usuario.turno == 'Full Time' %}selected{% endif %}>Full Time</option>
+            <option value="Full" {% if usuario.turno == 'Full' %}selected{% endif %}>Full</option>
             <option value="Part Time" {% if usuario.turno == 'Part Time' %}selected{% endif %}>Part Time</option>
             <option value="Llamado" {% if usuario.turno == 'Llamado' %}selected{% endif %}>Llamado</option>
           </select>
