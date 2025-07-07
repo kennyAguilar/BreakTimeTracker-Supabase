@@ -91,6 +91,10 @@ try:
     
     print("✅ Conexión a Supabase establecida correctamente")
     
+    # Inicializar clientes en db_utils
+    import db_utils
+    db_utils.initialize_db_clients(supabase, supabase_admin)
+    
 except Exception as e:
     conexion_supabase_status.update({
         'conectado': False,
@@ -251,36 +255,23 @@ def index():
                 tipo_mensaje = "error"
             else:
                 try:
-                    # Buscar usuario por tarjeta
-                    response = supabase.table('usuarios').select("*").eq('tarjeta', entrada).execute()
-                    usuario = response.data[0] if response.data else None
-                    print(f"🆔 Búsqueda por tarjeta: {len(response.data)} resultados")
+                    # Importar funciones de búsqueda
+                    from db_utils import buscar_usuario_inteligente, obtener_descanso_activo, crear_descanso
                     
-                    # Si no se encuentra por tarjeta, buscar por código
-                    if not usuario:
-                        response = supabase.table('usuarios').select("*").eq('codigo', entrada.upper()).execute()
-                        usuario = response.data[0] if response.data else None
-                        print(f"🔤 Búsqueda por código: {len(response.data)} resultados")
+                    # Usar búsqueda inteligente centralizada
+                    print(f"🔍 Iniciando búsqueda inteligente para: '{entrada}'")
+                    usuario = buscar_usuario_inteligente(entrada)
                     
-                    # Si aún no se encuentra, intentar con datos originales (fallback)
+                    # Si no se encuentra con datos parseados, intentar con datos originales
                     if not usuario and entrada != entrada_raw:
                         print(f"🔄 Intentando con datos originales como fallback...")
-                        response = supabase.table('usuarios').select("*").eq('tarjeta', entrada_raw).execute()
-                        if not response.data:
-                            response = supabase.table('usuarios').select("*").eq('codigo', entrada_raw.upper()).execute()
-                        usuario = response.data[0] if response.data else None
-                        print(f"🔄 Búsqueda con datos originales: {len(response.data)} resultados")
+                        usuario = buscar_usuario_inteligente(entrada_raw)
                     
                     if usuario:
                         print(f"👤 Usuario encontrado: {usuario['nombre']} (ID: {usuario['id']})")
                         
-                        # Verificar si tiene descanso activo
-                        response = supabase.table('descansos').select("*").eq('usuario_id', usuario['id']).execute()
-                        descanso_activo = response.data[0] if response.data else None
-                        
-                        print(f"🔍 Descansos encontrados: {len(response.data)}")
-                        if descanso_activo:
-                            print(f"⏰ Descanso activo encontrado: ID {descanso_activo['id']}, Inicio: {descanso_activo['inicio']}")
+                        # Verificar si tiene descanso activo usando db_utils
+                        descanso_activo = obtener_descanso_activo(usuario['id'])
                         
                         if descanso_activo:
                             print(f"🚪 PROCESANDO SALIDA DE DESCANSO")
@@ -301,21 +292,15 @@ def index():
                                 print(f"   Detalles: {detalle}")
                                 
                         else:
-                            # Registrar entrada a descanso
-                            try:
-                                insert_response = supabase_admin.table('descansos').insert({
-                                    'usuario_id': usuario['id'],
-                                    'inicio': get_current_time().isoformat(),
-                                    'tipo': 'Pendiente'
-                                }).execute()
-                                
-                                print(f"✅ Entrada registrada: {insert_response.data}")
+                            # Registrar entrada a descanso usando db_utils
+                            descanso_creado = crear_descanso(usuario['id'], get_current_time().isoformat())
+                            
+                            if descanso_creado:
+                                print(f"✅ Entrada registrada: {descanso_creado}")
                                 mensaje = f"{usuario['nombre']} - Entrada a descanso registrada"
                                 tipo_mensaje = "entrada"
-                                
-                            except Exception as e:
-                                print(f"❌ Error registrando entrada: {e}")
-                                mensaje = f"Error al registrar entrada: {str(e)}"
+                            else:
+                                mensaje = f"Error al registrar entrada para {usuario['nombre']}"
                                 tipo_mensaje = "error"
                     else:
                         mensaje = "Usuario no encontrado"
@@ -330,10 +315,9 @@ def index():
     try:
         print(f"\n🔍 === OBTENIENDO USUARIOS EN DESCANSO ===")
         
-        # Primero obtener todos los descansos activos
-        print(f"📊 Consultando tabla 'descansos'...")
-        response = supabase.table('descansos').select("*").execute()
-        descansos_activos = response.data
+        # Usar utilidad centralizada para obtener descansos activos
+        from db_utils import obtener_todos_descansos_activos
+        descansos_activos = obtener_todos_descansos_activos()
         
         print(f"📊 Descansos activos encontrados: {len(descansos_activos)}")
         
